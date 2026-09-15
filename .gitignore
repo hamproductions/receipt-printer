@@ -1,0 +1,13 @@
+node_modules/
+dist/
+styled-system/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+artifacts/
+conductor/
+.scratch/
+docs/
+.DS_Store
+Thumbs.db
