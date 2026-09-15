@@ -14,8 +14,6 @@ export type PersistedEditor = {
     feedBeforeCut: number;
     rotateForPrint: boolean;
     chunkSize: number;
-    serviceUuid: string;
-    characteristicUuid: string;
     includeAttendeeSerial: boolean;
   };
   logo?: {
@@ -165,13 +163,9 @@ function validateSettings(value: Record<string, unknown>): PersistedEditor['sett
   const feedBeforeCut = Math.floor(rawFeed ?? 0);
   const cutMode = value.cutMode === 'partial' || value.cutMode === 'none' ? value.cutMode : 'full';
   const chunkSize = boundedNumber(value.chunkSize, 20, 512);
-  const serviceUuid = boundedString(value.serviceUuid, 200);
-  const characteristicUuid = boundedString(value.characteristicUuid, 200);
   if (
     typeof value.rotateForPrint !== 'boolean' ||
     chunkSize === null ||
-    serviceUuid === null ||
-    characteristicUuid === null ||
     typeof value.includeAttendeeSerial !== 'boolean'
   ) {
     return null;
@@ -183,8 +177,6 @@ function validateSettings(value: Record<string, unknown>): PersistedEditor['sett
     feedBeforeCut,
     rotateForPrint: value.rotateForPrint,
     chunkSize,
-    serviceUuid,
-    characteristicUuid,
     includeAttendeeSerial: value.includeAttendeeSerial
   };
 }

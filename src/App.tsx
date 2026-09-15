@@ -7,13 +7,7 @@ import {
   type ReceiptState
 } from './receipt';
 import { encodeEscPosRaster, MAX_FEED_BEFORE_CUT, MAX_PRINT_WIDTH, MIN_PRINT_WIDTH, type CutMode } from './escpos';
-import {
-  disconnectBluetooth,
-  hasBluetoothSupport,
-  requestBluetoothConnection,
-  writeEscPos,
-  type BluetoothConnection
-} from './bluetooth';
+import { disconnectSerial, hasSerialSupport, requestSerialConnection, writeEscPos, type SerialConnection } from './serial';
 import { Button as ParkButton } from './components/ui/button';
 import { createPersistedEditor, MAX_LOGO_DATA_URL_LENGTH, readPersistedEditor, writePersistedEditor } from './persistence';
 import './styles.css';
@@ -33,9 +27,6 @@ type ImportResponse = {
   error?: string;
 };
 
-const GENERIC_SERVICE = '0000ffe0-0000-1000-8000-00805f9b34fb';
-const GENERIC_CHARACTERISTIC = '0000ffe1-0000-1000-8000-00805f9b34fb';
-
 export function App() {
   const [receipt, setReceipt] = useState<ReceiptState>(defaultReceipt);
   const [referenceLogo, setReferenceLogo] = useState<LogoAsset | null>(null);
@@ -52,11 +43,9 @@ export function App() {
   const [feedBeforeCut, setFeedBeforeCut] = useState(0);
   const [rotateForPrint, setRotateForPrint] = useState(false);
   const [chunkSize, setChunkSize] = useState(180);
-  const [serviceUuid, setServiceUuid] = useState(GENERIC_SERVICE);
-  const [characteristicUuid, setCharacteristicUuid] = useState(GENERIC_CHARACTERISTIC);
-  const [bluetoothConnection, setBluetoothConnection] = useState<BluetoothConnection | null>(null);
-  const [bluetoothMessage, setBluetoothMessage] = useState('未接続');
-  const [bluetoothError, setBluetoothError] = useState('');
+  const [serialConnection, setSerialConnection] = useState<SerialConnection | null>(null);
+  const [serialMessage, setSerialMessage] = useState('未接続');
+  const [serialError, setSerialError] = useState('');
   const [printing, setPrinting] = useState(false);
   const [exportError, setExportError] = useState('');
   const [fontReady, setFontReady] = useState(false);
@@ -64,7 +53,7 @@ export function App() {
   const [persistenceMessage, setPersistenceMessage] = useState('');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const printAbortRef = useRef<AbortController | null>(null);
-  const bluetoothSupported = typeof navigator !== 'undefined' && hasBluetoothSupport();
+  const serialSupported = typeof navigator !== 'undefined' && hasSerialSupport();
   const activeLogo = receipt.logoMode === 'upload' ? uploadedLogo : referenceLogo;
   const offkaiImportAvailable = import.meta.env.DEV || import.meta.env.VITE_STATIC_DEPLOY !== 'true';
 
@@ -78,8 +67,6 @@ export function App() {
       setFeedBeforeCut(stored.settings.feedBeforeCut);
       setRotateForPrint(stored.settings.rotateForPrint);
       setChunkSize(stored.settings.chunkSize);
-      setServiceUuid(stored.settings.serviceUuid);
-      setCharacteristicUuid(stored.settings.characteristicUuid);
       setIncludeAttendeeSerial(stored.settings.includeAttendeeSerial);
       if (stored.logo) {
         const image = new Image();
@@ -154,8 +141,6 @@ export function App() {
           feedBeforeCut,
           rotateForPrint,
           chunkSize,
-          serviceUuid,
-          characteristicUuid,
           includeAttendeeSerial
         },
         uploadedLogo
@@ -169,7 +154,7 @@ export function App() {
           : '自動保存済み'
         : '保存容量不足のため自動保存できません'
     );
-  }, [characteristicUuid, chunkSize, cutMode, feedBeforeCut, includeAttendeeSerial, printWidth, rasterMargin, receipt, restored, rotateForPrint, serviceUuid, uploadedLogo]);
+  }, [chunkSize, cutMode, feedBeforeCut, includeAttendeeSerial, printWidth, rasterMargin, receipt, restored, rotateForPrint, uploadedLogo]);
 
   function updateReceipt<K extends keyof ReceiptState>(key: K, value: ReceiptState[K]) {
     setReceipt((current) => ({ ...current, [key]: value }));
@@ -313,48 +298,44 @@ export function App() {
     }
   }
 
-  async function handleBluetoothConnect() {
-    setBluetoothError('');
-    setBluetoothMessage('デバイスを選択してください。');
+  async function handleSerialConnect() {
+    setSerialError('');
+    setSerialMessage('シリアルポートを選択してください。');
     try {
-      const connection = await requestBluetoothConnection(serviceUuid.trim(), characteristicUuid.trim());
-      connection.device.addEventListener('gattserverdisconnected', () => {
-        setBluetoothConnection(null);
-        setBluetoothMessage('切断されました');
-      });
-      setBluetoothConnection(connection);
-      setBluetoothMessage(`接続中: ${connection.device.name || '名前なしデバイス'}`);
+      const connection = await requestSerialConnection();
+      setSerialConnection(connection);
+      setSerialMessage('接続中: シリアルポート');
     } catch (error) {
-      setBluetoothMessage('未接続');
-      setBluetoothError(error instanceof Error ? error.message : 'Bluetooth接続に失敗しました。');
+      setSerialMessage('未接続');
+      setSerialError(error instanceof Error ? error.message : 'シリアルポート接続に失敗しました。');
     }
   }
 
-  function handleBluetoothDisconnect() {
-    disconnectBluetooth(bluetoothConnection);
-    setBluetoothConnection(null);
-    setBluetoothMessage('未接続');
+  async function handleSerialDisconnect() {
+    await disconnectSerial(serialConnection);
+    setSerialConnection(null);
+    setSerialMessage('未接続');
   }
 
   async function handlePrint() {
-    if (!bluetoothConnection) {
-      setBluetoothError('先にBluetoothプリンターへ接続してください。');
+    if (!serialConnection) {
+      setSerialError('先にシリアルポートへ接続してください。');
       return;
     }
     const controller = new AbortController();
     printAbortRef.current = controller;
     setPrinting(true);
-    setBluetoothError('');
+    setSerialError('');
     try {
       const canvas = createPrinterCanvas(receipt, activeLogo, printWidth, rotateForPrint, rasterMargin);
       const bytes = encodeEscPosRaster(canvas, { cutMode, feedBeforeCut });
-      await writeEscPos(bluetoothConnection, bytes, chunkSize, controller.signal);
-      setBluetoothMessage(`送信完了: ${bytes.length.toLocaleString()} bytes`);
+      await writeEscPos(serialConnection, bytes, chunkSize, controller.signal);
+      setSerialMessage(`送信完了: ${bytes.length.toLocaleString()} bytes`);
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        setBluetoothMessage('印刷をキャンセルしました。');
+        setSerialMessage('印刷をキャンセルしました。');
       } else {
-        setBluetoothError(error instanceof Error ? error.message : '印刷に失敗しました。');
+        setSerialError(error instanceof Error ? error.message : '印刷に失敗しました。');
       }
     } finally {
       setPrinting(false);
@@ -537,7 +518,7 @@ export function App() {
             </label>
             <p className="helper-text">0は既定送り。カットありはGS V65/66、カットなしはESC Jで送り、単位は機種依存です。</p>
             <label className="field-group">
-                <span className="field-label">BLE分割サイズ</span>
+                <span className="field-label">シリアル分割サイズ</span>
                 <input className="text-input" type="number" min={20} max={512} step={1} value={chunkSize} onChange={(event) => setChunkSize(Math.max(20, Math.min(512, Number(event.target.value) || 180)))} />
             </label>
             <div className="action-row">
@@ -551,37 +532,29 @@ export function App() {
             {exportError && <p className="inline-error">{exportError}</p>}
           </section>
 
-          <section className="control-section bluetooth-section">
-            <SectionHeading number="05" title="Web Bluetooth" />
-            <p className={`support-line ${bluetoothSupported ? 'supported' : 'unsupported'}`}>
+          <section className="control-section serial-section">
+            <SectionHeading number="05" title="シリアル印刷" />
+            <p className={`support-line ${serialSupported ? 'supported' : 'unsupported'}`}>
               <span className="support-dot" />
-              {bluetoothSupported ? 'このブラウザで利用可能' : 'このブラウザでは利用できません'}
+              {serialSupported ? 'Web Serialを利用できます' : 'このブラウザではWeb Serialを利用できません'}
             </p>
-            <label className="field-group">
-              <span className="field-label">サービスUUID</span>
-              <input className="text-input mono-input" value={serviceUuid} onChange={(event) => setServiceUuid(event.target.value)} />
-            </label>
-            <label className="field-group">
-              <span className="field-label">Characteristic UUID</span>
-              <input className="text-input mono-input" value={characteristicUuid} onChange={(event) => setCharacteristicUuid(event.target.value)} />
-            </label>
             <div className="action-row">
-              <button className="button button-primary" type="button" onClick={handleBluetoothConnect} disabled={!bluetoothSupported || Boolean(bluetoothConnection)}>
-                プリンターを選択
+              <button className="button button-primary" type="button" onClick={handleSerialConnect} disabled={!serialSupported || Boolean(serialConnection)}>
+                シリアルポートを選択
               </button>
-              <button className="button button-secondary" type="button" onClick={handleBluetoothDisconnect} disabled={!bluetoothConnection}>
+              <button className="button button-secondary" type="button" onClick={handleSerialDisconnect} disabled={!serialConnection}>
                 切断
               </button>
             </div>
             <div className="connection-status">
-              <span className={`status-dot ${bluetoothConnection ? 'is-connected' : ''}`} />
-              <span>{bluetoothMessage}</span>
+              <span className={`status-dot ${serialConnection ? 'is-connected' : ''}`} />
+              <span>{serialMessage}</span>
             </div>
-            <button className="button button-print" type="button" onClick={printing ? cancelPrint : handlePrint} disabled={!printing && !bluetoothConnection}>
+            <button className="button button-print" type="button" onClick={printing ? cancelPrint : handlePrint} disabled={!printing && !serialConnection}>
               {printing ? '印刷を中止' : 'ESC/POSを送信'}
             </button>
-            {bluetoothError && <p className="inline-error">{bluetoothError}</p>}
-            <p className="helper-text">実機がない場合は .bin を保存して送信内容を確認できます。</p>
+            {serialError && <p className="inline-error">{serialError}</p>}
+            <p className="helper-text">Bluetoothペアリング済みのプリンターをシリアルポートとして選択します。実機がない場合は .bin を保存して送信内容を確認できます。</p>
           </section>
         </aside>
 
@@ -624,7 +597,7 @@ export function App() {
               <span className="note-index">C</span>
               <div>
                 <strong>ハードウェア</strong>
-                <p>BLE対応プリンター未接続時の送信は実行しません。</p>
+                <p>シリアルポート未接続時の送信は実行しません。</p>
               </div>
             </div>
           </div>
