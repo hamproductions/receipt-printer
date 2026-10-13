@@ -1,6 +1,6 @@
 # Receipt Printer
 
-Web Bluetooth対応のESC/POS帳票エディターです。見本帳票の内容を独立した入力欄で編集し、同じCanvas描画からプレビュー、PNG、ESC/POSラスタデータを生成します。
+Web Bluetooth (BLE) / Web Serial対応のESC/POS帳票エディターです。見本帳票の内容を独立した入力欄で編集し、同じCanvas描画からプレビュー、PNG、ESC/POSラスタデータを生成します。
 
 ## ローカル実行
 

@@ -1,4 +1,5 @@
 export type SerialConnection = {
+  kind: 'serial';
   port: SerialPortLike;
 };
 
@@ -24,7 +25,7 @@ export async function requestSerialConnection() {
 
   const port = await serial.requestPort();
   await port.open({ baudRate: 9600 });
-  return { port } satisfies SerialConnection;
+  return { kind: 'serial', port } satisfies SerialConnection;
 }
 
 export async function writeEscPos(

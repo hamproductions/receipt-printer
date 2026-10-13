@@ -7,7 +7,9 @@ import {
   type ReceiptState
 } from './receipt';
 import { encodeEscPosRaster, MAX_FEED_BEFORE_CUT, MAX_PRINT_WIDTH, MIN_PRINT_WIDTH, type CutMode } from './escpos';
+import { disconnectBluetooth, hasBluetoothSupport, requestBluetoothConnection, writeBluetooth } from './bluetooth';
 import { disconnectSerial, hasSerialSupport, requestSerialConnection, writeEscPos, type SerialConnection } from './serial';
+import type { BluetoothConnection } from './bluetooth';
 import { Button as ParkButton } from './components/ui/button';
 import { createPersistedEditor, MAX_LOGO_DATA_URL_LENGTH, readPersistedEditor, writePersistedEditor } from './persistence';
 import './styles.css';
@@ -43,7 +45,7 @@ export function App() {
   const [feedBeforeCut, setFeedBeforeCut] = useState(0);
   const [rotateForPrint, setRotateForPrint] = useState(false);
   const [chunkSize, setChunkSize] = useState(180);
-  const [serialConnection, setSerialConnection] = useState<SerialConnection | null>(null);
+  const [serialConnection, setSerialConnection] = useState<SerialConnection | BluetoothConnection | null>(null);
   const [serialMessage, setSerialMessage] = useState('未接続');
   const [serialError, setSerialError] = useState('');
   const [printing, setPrinting] = useState(false);
@@ -54,6 +56,7 @@ export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const printAbortRef = useRef<AbortController | null>(null);
   const serialSupported = typeof navigator !== 'undefined' && hasSerialSupport();
+  const bluetoothSupported = typeof navigator !== 'undefined' && hasBluetoothSupport();
   const activeLogo = receipt.logoMode === 'upload' ? uploadedLogo : referenceLogo;
   const offkaiImportAvailable = import.meta.env.DEV || import.meta.env.VITE_STATIC_DEPLOY !== 'true';
 
@@ -311,8 +314,29 @@ export function App() {
     }
   }
 
+  async function handleBluetoothConnect() {
+    setSerialError('');
+    setSerialMessage('デバイスを選択してください。');
+    try {
+      const connection = await requestBluetoothConnection();
+      connection.device.addEventListener('gattserverdisconnected', () => {
+        setSerialConnection(null);
+        setSerialMessage('切断されました');
+      });
+      setSerialConnection(connection);
+      setSerialMessage(`接続中: ${connection.label}`);
+    } catch (error) {
+      setSerialMessage('未接続');
+      setSerialError(error instanceof Error ? error.message : 'Bluetooth接続に失敗しました。');
+    }
+  }
+
   async function handleSerialDisconnect() {
-    await disconnectSerial(serialConnection);
+    if (serialConnection?.kind === 'bluetooth') {
+      disconnectBluetooth(serialConnection);
+    } else {
+      await disconnectSerial(serialConnection);
+    }
     setSerialConnection(null);
     setSerialMessage('未接続');
   }
@@ -329,7 +353,11 @@ export function App() {
     try {
       const canvas = createPrinterCanvas(receipt, activeLogo, printWidth, rotateForPrint, rasterMargin);
       const bytes = encodeEscPosRaster(canvas, { cutMode, feedBeforeCut });
-      await writeEscPos(serialConnection, bytes, chunkSize, controller.signal);
+      if (serialConnection.kind === 'bluetooth') {
+        await writeBluetooth(serialConnection, bytes, chunkSize, controller.signal);
+      } else {
+        await writeEscPos(serialConnection, bytes, chunkSize, controller.signal);
+      }
       setSerialMessage(`送信完了: ${bytes.length.toLocaleString()} bytes`);
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
@@ -533,11 +561,20 @@ export function App() {
           </section>
 
           <section className="control-section serial-section">
-            <SectionHeading number="05" title="シリアル印刷" />
+            <SectionHeading number="05" title="プリンター接続" />
             <p className={`support-line ${serialSupported ? 'supported' : 'unsupported'}`}>
               <span className="support-dot" />
               {serialSupported ? 'Web Serialを利用できます' : 'このブラウザではWeb Serialを利用できません'}
             </p>
+            <p className={`support-line ${bluetoothSupported ? 'supported' : 'unsupported'}`}>
+              <span className="support-dot" />
+              {bluetoothSupported ? 'Web Bluetooth (BLE) を利用できます' : 'このブラウザではWeb Bluetoothを利用できません'}
+            </p>
+            <div className="action-row">
+              <button className="button button-primary" type="button" onClick={handleBluetoothConnect} disabled={!bluetoothSupported || Boolean(serialConnection)}>
+                Bluetooth (BLE) で接続
+              </button>
+            </div>
             <div className="action-row">
               <button className="button button-primary" type="button" onClick={handleSerialConnect} disabled={!serialSupported || Boolean(serialConnection)}>
                 シリアルポートを選択
@@ -554,7 +591,7 @@ export function App() {
               {printing ? '印刷を中止' : 'ESC/POSを送信'}
             </button>
             {serialError && <p className="inline-error">{serialError}</p>}
-            <p className="helper-text">Bluetoothペアリング済みのプリンターをシリアルポートとして選択します。実機がない場合は .bin を保存して送信内容を確認できます。</p>
+            <p className="helper-text">BLE接続はOSでペアリングせず、ブラウザの一覧から選択してください（他のアプリが接続中だと失敗します）。シリアルはOSでペアリング済みのSPPポート用（デスクトップ版Chromeのみ）です。実機がない場合は .bin を保存して送信内容を確認できます。</p>
           </section>
         </aside>
 
