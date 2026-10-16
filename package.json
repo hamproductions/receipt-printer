@@ -14,7 +14,7 @@
     "@ark-ui/react": "^4.8.1",
     "@pandacss/dev": "^1.7.1",
     "@park-ui/panda-preset": "^0.43.1",
-    "escpos-web-print": "github:hamzaabamboo/escpos-web-print#v0.1.1",
+    "escpos-web-print": "^0.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
