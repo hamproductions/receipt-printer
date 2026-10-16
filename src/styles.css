@@ -429,6 +429,10 @@ button:disabled {
   gap: 8px;
 }
 
+.three-column-fields {
+  grid-template-columns: repeat(3, 1fr);
+}
+
 .two-column-fields .field-group {
   min-width: 0;
 }
@@ -517,6 +521,36 @@ button:disabled {
 
 .preview-panel .inline-error {
   margin: 0;
+}
+
+.preset-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.preset-row .text-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.preset-row .button {
+  flex: 0 0 auto;
+}
+
+.file-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.file-button input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .advanced-settings {

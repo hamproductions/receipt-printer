@@ -3,16 +3,18 @@ import { MAX_FEED_BEFORE_CUT, MAX_HEATING, MAX_PRINT_WIDTH, MIN_PRINT_WIDTH, typ
 
 const STORAGE_KEY = 'receipt-printer:editor:v1';
 export const MAX_LOGO_DATA_URL_LENGTH = 1_500_000;
-export const DEFAULT_PADDING = 48;
+export const DEFAULT_PADDING_BEFORE = 48;
+export const DEFAULT_PADDING_AFTER = 96;
+export const DEFAULT_SIDE_MARGIN = 12;
 
 export type PersistedEditor = {
   version: 1;
   receipt: ReceiptState;
   settings: {
     printWidth: number;
-    rasterMargin: number;
+    sideMargin: number;
     paddingBefore: number;
-    paddingAfter: number;
+    trailingPadding: number;
     paperCut: CutMode;
     feedBeforeCut: number;
     heating: number;
@@ -72,16 +74,7 @@ export function createPersistedEditor(
   settings: PersistedEditor['settings'],
   logo: LogoAsset | null
 ) {
-  const persistedLogo =
-    receipt.logoMode === 'upload' &&
-    logo?.dataUrl &&
-    logo.dataUrl.length <= MAX_LOGO_DATA_URL_LENGTH
-      ? {
-          dataUrl: logo.dataUrl,
-          width: logo.width,
-          height: logo.height
-        }
-      : undefined;
+  const persistedLogo = persistableLogo(receipt, logo);
 
   return {
     version: 1 as const,
@@ -93,6 +86,12 @@ export function createPersistedEditor(
     settings,
     ...(persistedLogo ? { logo: persistedLogo } : {})
   } satisfies PersistedEditor;
+}
+
+function persistableLogo(receipt: ReceiptState, logo: LogoAsset | null) {
+  return receipt.logoMode === 'upload' && logo?.dataUrl && logo.dataUrl.length <= MAX_LOGO_DATA_URL_LENGTH
+    ? { dataUrl: logo.dataUrl, width: logo.width, height: logo.height }
+    : undefined;
 }
 
 function validatePersistedEditor(value: unknown): PersistedEditor | null {
@@ -164,10 +163,10 @@ function validateSettings(value: Record<string, unknown>): PersistedEditor['sett
     return null;
   }
   const printWidth = Math.max(MIN_PRINT_WIDTH, Math.min(MAX_PRINT_WIDTH, Math.round(rawPrintWidth / 8) * 8));
-  const rawMargin = value.rasterMargin === undefined ? 0 : boundedNumber(value.rasterMargin, 0, MAX_PRINT_WIDTH);
-  const rasterMargin = Math.min(Math.floor(rawMargin ?? 0), Math.floor((printWidth - 8) / 2));
-  const paddingBefore = readPadding(value.paddingBefore);
-  const paddingAfter = readPadding(value.paddingAfter);
+  const rawMargin = value.sideMargin === undefined ? DEFAULT_SIDE_MARGIN : boundedNumber(value.sideMargin, 0, MAX_PRINT_WIDTH);
+  const sideMargin = Math.min(Math.floor(rawMargin ?? DEFAULT_SIDE_MARGIN), Math.floor((printWidth - 8) / 2));
+  const paddingBefore = readPadding(value.paddingBefore, DEFAULT_PADDING_BEFORE);
+  const trailingPadding = readPadding(value.trailingPadding, DEFAULT_PADDING_AFTER);
   const rawFeed = value.feedBeforeCut === undefined ? 0 : boundedNumber(value.feedBeforeCut, 0, MAX_FEED_BEFORE_CUT);
   const feedBeforeCut = Math.floor(rawFeed ?? 0);
   const rawHeating = value.heating === undefined ? 0 : boundedNumber(value.heating, 0, MAX_HEATING);
@@ -185,9 +184,9 @@ function validateSettings(value: Record<string, unknown>): PersistedEditor['sett
   }
   return {
     printWidth,
-    rasterMargin,
+    sideMargin,
     paddingBefore,
-    paddingAfter,
+    trailingPadding,
     paperCut,
     feedBeforeCut,
     heating,
@@ -199,8 +198,8 @@ function validateSettings(value: Record<string, unknown>): PersistedEditor['sett
   };
 }
 
-function readPadding(value: unknown) {
-  return value === undefined ? DEFAULT_PADDING : Math.floor(boundedNumber(value, 0, MAX_PADDING) ?? DEFAULT_PADDING);
+function readPadding(value: unknown, fallback: number) {
+  return value === undefined ? fallback : Math.floor(boundedNumber(value, 0, MAX_PADDING) ?? fallback);
 }
 
 function readPrintRotation(value: Record<string, unknown>): PrintRotation {
@@ -236,4 +235,78 @@ function boundedNumber(value: unknown, min: number, max: number) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+const PRESET_STORAGE_KEY = 'receipt-printer:presets:v1';
+const MAX_PRESETS = 50;
+
+export type PresetLogo = NonNullable<PersistedEditor['logo']>;
+
+export type Preset = {
+  id: string;
+  name: string;
+  receipt: ReceiptState;
+  logo?: PresetLogo;
+};
+
+export function createPreset(name: string, receipt: ReceiptState, logo: LogoAsset | null): Preset {
+  const presetLogo = persistableLogo(receipt, logo);
+  return {
+    id: `preset-${Date.now().toString(36)}`,
+    name,
+    receipt: { ...receipt, logoMode: presetLogo ? 'upload' : 'reference', fontFamily: defaultReceipt.fontFamily },
+    ...(presetLogo ? { logo: presetLogo } : {})
+  };
+}
+
+export function readPresets() {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(PRESET_STORAGE_KEY) ?? '[]');
+    return Array.isArray(parsed) ? parsed.map(validatePreset).filter((preset): preset is Preset => preset !== null) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writePresets(presets: Preset[]) {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  try {
+    window.localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presets.slice(0, MAX_PRESETS)));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function parsePresetFile(text: string) {
+  try {
+    const preset = validatePreset(JSON.parse(text));
+    return preset ? { ...preset, id: `preset-${Date.now().toString(36)}` } : null;
+  } catch {
+    return null;
+  }
+}
+
+function validatePreset(value: unknown): Preset | null {
+  if (!isRecord(value) || !isRecord(value.receipt)) {
+    return null;
+  }
+  const id = boundedString(value.id, 100);
+  const name = boundedString(value.name, 100);
+  const receipt = validateReceipt(value.receipt);
+  const logo = value.logo === undefined ? null : validateLogo(value.logo);
+  if (!id || !name?.trim() || !receipt || (value.logo !== undefined && !logo)) {
+    return null;
+  }
+  return {
+    id,
+    name: name.trim(),
+    receipt: { ...receipt, logoMode: logo ? 'upload' : 'reference' },
+    ...(logo ? { logo } : {})
+  };
 }

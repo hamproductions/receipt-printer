@@ -223,11 +223,12 @@ export function createPrinterCanvas(
 
   const base = document.createElement('canvas');
   drawReceipt(base, state, logo);
+  const bounds = findContentBounds(base);
   const contentWidth = selectedWidth - margin * 2;
-  const scale = contentWidth / RECEIPT_HEIGHT;
+  const scale = contentWidth / bounds.height;
   const canvas = document.createElement('canvas');
   canvas.width = selectedWidth;
-  const contentHeight = Math.round(RECEIPT_WIDTH * scale);
+  const contentHeight = Math.round(bounds.width * scale);
   canvas.height = paddingBefore + contentHeight + paddingAfter;
   const context = canvas.getContext('2d');
   if (!context) {
@@ -242,8 +243,34 @@ export function createPrinterCanvas(
     context.translate(margin, paddingBefore + contentHeight);
     context.rotate(-Math.PI / 2);
   }
-  context.drawImage(base, 0, 0, contentHeight, Math.round(RECEIPT_HEIGHT * scale));
+  context.drawImage(base, bounds.x, bounds.y, bounds.width, bounds.height, 0, 0, contentHeight, contentWidth);
   return canvas;
+}
+
+function findContentBounds(canvas: HTMLCanvasElement) {
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) {
+    return { x: 0, y: 0, width: canvas.width, height: canvas.height };
+  }
+  const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+  let left = canvas.width;
+  let top = canvas.height;
+  let right = -1;
+  let bottom = -1;
+  for (let y = 0; y < canvas.height; y += 1) {
+    for (let x = 0; x < canvas.width; x += 1) {
+      const offset = (y * canvas.width + x) * 4;
+      if (data[offset] < 245 || data[offset + 1] < 245 || data[offset + 2] < 245) {
+        left = Math.min(left, x);
+        right = Math.max(right, x);
+        top = Math.min(top, y);
+        bottom = Math.max(bottom, y);
+      }
+    }
+  }
+  return right < 0
+    ? { x: 0, y: 0, width: canvas.width, height: canvas.height }
+    : { x: left, y: top, width: right - left + 1, height: bottom - top + 1 };
 }
 
 function clamp(value: number, min: number, max: number) {

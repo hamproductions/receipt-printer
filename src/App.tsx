@@ -16,7 +16,21 @@ import { encodeEscPosRaster, encodeEscPosRasterParts, encodeEscPosTextTest, MAX_
 import { hasBluetoothSupport, requestBluetoothConnection } from './bluetooth';
 import type { PrinterConnection } from './printer';
 import { Button as ParkButton } from './components/ui/button';
-import { createPersistedEditor, DEFAULT_PADDING, MAX_LOGO_DATA_URL_LENGTH, readPersistedEditor, writePersistedEditor } from './persistence';
+import {
+  createPersistedEditor,
+  createPreset,
+  DEFAULT_PADDING_AFTER,
+  DEFAULT_PADDING_BEFORE,
+  DEFAULT_SIDE_MARGIN,
+  MAX_LOGO_DATA_URL_LENGTH,
+  parsePresetFile,
+  readPersistedEditor,
+  readPresets,
+  writePersistedEditor,
+  writePresets,
+  type Preset
+} from './persistence';
+import { BUILT_IN_PRESETS } from './presets';
 import './styles.css';
 
 type ImportResponse = {
@@ -45,9 +59,9 @@ export function App() {
   const [importMessage, setImportMessage] = useState('');
   const [importError, setImportError] = useState('');
   const [printWidth, setPrintWidth] = useState(384);
-  const [rasterMargin, setRasterMargin] = useState(0);
-  const [paddingBefore, setPaddingBefore] = useState(DEFAULT_PADDING);
-  const [paddingAfter, setPaddingAfter] = useState(DEFAULT_PADDING);
+  const [rasterMargin, setRasterMargin] = useState(DEFAULT_SIDE_MARGIN);
+  const [paddingBefore, setPaddingBefore] = useState(DEFAULT_PADDING_BEFORE);
+  const [paddingAfter, setPaddingAfter] = useState(DEFAULT_PADDING_AFTER);
   const [cutMode, setCutMode] = useState<CutMode>('none');
   const [feedBeforeCut, setFeedBeforeCut] = useState(0);
   const [heating, setHeating] = useState(0);
@@ -63,6 +77,11 @@ export function App() {
   const [fontReady, setFontReady] = useState(false);
   const [restored, setRestored] = useState(false);
   const [persistenceMessage, setPersistenceMessage] = useState('');
+  const [savedPresets, setSavedPresets] = useState<Preset[]>(readPresets);
+  const [selectedPresetId, setSelectedPresetId] = useState(BUILT_IN_PRESETS[0].id);
+  const [presetName, setPresetName] = useState('');
+  const [presetMessage, setPresetMessage] = useState('');
+  const [presetError, setPresetError] = useState('');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const printAbortRef = useRef<AbortController | null>(null);
   const bluetoothSupported = typeof navigator !== 'undefined' && hasBluetoothSupport();
@@ -74,9 +93,9 @@ export function App() {
     if (stored) {
       setReceipt(stored.receipt);
       setPrintWidth(stored.settings.printWidth);
-      setRasterMargin(stored.settings.rasterMargin);
+      setRasterMargin(stored.settings.sideMargin);
       setPaddingBefore(stored.settings.paddingBefore);
-      setPaddingAfter(stored.settings.paddingAfter);
+      setPaddingAfter(stored.settings.trailingPadding);
       setCutMode(stored.settings.paperCut);
       setFeedBeforeCut(stored.settings.feedBeforeCut);
       setHeating(stored.settings.heating);
@@ -148,9 +167,9 @@ export function App() {
         receipt,
         {
           printWidth,
-          rasterMargin,
+          sideMargin: rasterMargin,
           paddingBefore,
-          paddingAfter,
+          trailingPadding: paddingAfter,
           paperCut: cutMode,
           feedBeforeCut,
           heating,
@@ -200,6 +219,116 @@ export function App() {
   function updateFeedBeforeCut(value: number) {
     const next = Number.isFinite(value) ? Math.max(0, Math.min(MAX_FEED_BEFORE_CUT, Math.round(value))) : 0;
     setFeedBeforeCut(next);
+  }
+
+  async function applyPreset(nextReceipt: ReceiptState, logoDataUrl?: string) {
+    if (!logoDataUrl) {
+      setReceipt({ ...nextReceipt, logoMode: 'reference' });
+      return;
+    }
+    const logo = await loadLogo(logoDataUrl);
+    setUploadedLogo(logo);
+    setReceipt({ ...nextReceipt, logoMode: 'upload' });
+  }
+
+  async function handleLoadPreset() {
+    setPresetMessage('');
+    setPresetError('');
+    const builtIn = BUILT_IN_PRESETS.find((preset) => preset.id === selectedPresetId);
+    const saved = savedPresets.find((preset) => preset.id === selectedPresetId);
+    try {
+      if (builtIn) {
+        if (builtIn.logoUrl) {
+          const logoDataUrl = await fetchDataUrl(builtIn.logoUrl).catch(() => null);
+          if (!logoDataUrl) {
+            setReceipt((current) => ({ ...builtIn.receipt, logoMode: current.logoMode, logoOffsetX: current.logoOffsetX, logoOffsetY: current.logoOffsetY, logoScale: current.logoScale }));
+            setPresetError('プリセットのロゴ画像が見つからないため、テキストだけ読み込みました。');
+            return;
+          }
+          await applyPreset(builtIn.receipt, logoDataUrl);
+        } else {
+          await applyPreset(builtIn.receipt);
+        }
+        setPresetMessage(`「${builtIn.name}」を読み込みました`);
+      } else if (saved) {
+        await applyPreset(saved.receipt, saved.logo?.dataUrl);
+        setPresetName(saved.name);
+        setPresetMessage(`「${saved.name}」を読み込みました`);
+      }
+    } catch {
+      setPresetError('プリセットを読み込めませんでした。');
+    }
+  }
+
+  function handleSavePreset(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPresetMessage('');
+    setPresetError('');
+    const name = presetName.trim();
+    if (!name) {
+      setPresetError('プリセット名を入力してください。');
+      return;
+    }
+    const existing = savedPresets.find((preset) => preset.name === name);
+    const preset = { ...createPreset(name, receipt, receipt.logoMode === 'upload' ? uploadedLogo : null), ...(existing ? { id: existing.id } : {}) };
+    const next = existing ? savedPresets.map((item) => (item.id === existing.id ? preset : item)) : [...savedPresets, preset];
+    if (!writePresets(next)) {
+      setPresetError('保存容量が不足しています。不要なプリセットを削除するか、ファイルに書き出してください。');
+      return;
+    }
+    setSavedPresets(next);
+    setSelectedPresetId(preset.id);
+    setPresetMessage(existing ? `「${name}」を上書きしました` : `「${name}」を保存しました`);
+  }
+
+  function handleDeletePreset() {
+    const target = savedPresets.find((preset) => preset.id === selectedPresetId);
+    if (!target) {
+      return;
+    }
+    const next = savedPresets.filter((preset) => preset.id !== target.id);
+    if (!writePresets(next)) {
+      setPresetError('プリセットを削除できませんでした。');
+      return;
+    }
+    setSavedPresets(next);
+    setSelectedPresetId(BUILT_IN_PRESETS[0].id);
+    setPresetMessage(`「${target.name}」を削除しました`);
+  }
+
+  function handleExportPreset() {
+    const name = presetName.trim() || receipt.subtitle.trim() || 'preset';
+    const preset = createPreset(name, receipt, receipt.logoMode === 'upload' ? uploadedLogo : null);
+    downloadBlob(new Blob([JSON.stringify(preset)], { type: 'application/json' }), `${name.replace(/[\\/:*?"<>|]/gu, '_')}.json`);
+  }
+
+  async function handleImportPreset(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    setPresetMessage('');
+    setPresetError('');
+    if (!file) {
+      return;
+    }
+    const preset = parsePresetFile(await file.text());
+    if (!preset) {
+      setPresetError('プリセットファイルの形式が正しくありません。');
+      return;
+    }
+    const next = [...savedPresets.filter((item) => item.name !== preset.name), preset];
+    if (!writePresets(next)) {
+      setPresetError('保存容量が不足しています。不要なプリセットを削除してください。');
+      return;
+    }
+    setSavedPresets(next);
+    setSelectedPresetId(preset.id);
+    setPresetName(preset.name);
+    try {
+      await applyPreset(preset.receipt, preset.logo?.dataUrl);
+      setPresetMessage(`「${preset.name}」を読み込みました`);
+    } catch {
+      setPresetError('プリセットのロゴ画像を読み込めませんでした。');
+    }
   }
 
   function handleLogoUpload(event: ChangeEvent<HTMLInputElement>) {
@@ -405,7 +534,54 @@ export function App() {
           </div>
 
           <section className="control-section">
-            <SectionHeading number="01" title="Offkaiから読み込む" />
+            <SectionHeading number="01" title="プリセット" />
+            <div className="preset-row">
+              <select className="text-input" value={selectedPresetId} onChange={(event) => setSelectedPresetId(event.target.value)} aria-label="プリセット">
+                <optgroup label="組み込み">
+                  {BUILT_IN_PRESETS.map((preset) => (
+                    <option key={preset.id} value={preset.id}>
+                      {preset.name}
+                    </option>
+                  ))}
+                </optgroup>
+                {savedPresets.length > 0 && (
+                  <optgroup label="保存済み">
+                    {savedPresets.map((preset) => (
+                      <option key={preset.id} value={preset.id}>
+                        {preset.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+              <button className="button button-primary" type="button" onClick={handleLoadPreset}>
+                読み込む
+              </button>
+            </div>
+            <form className="preset-row" onSubmit={handleSavePreset}>
+              <input className="text-input" value={presetName} onChange={(event) => setPresetName(event.target.value)} placeholder="プリセット名" maxLength={100} aria-label="プリセット名" />
+              <button className="button button-secondary" type="submit">
+                保存
+              </button>
+            </form>
+            <div className="action-row">
+              <button className="button button-secondary" type="button" onClick={handleDeletePreset} disabled={!savedPresets.some((preset) => preset.id === selectedPresetId)}>
+                削除
+              </button>
+              <button className="button button-secondary" type="button" onClick={handleExportPreset}>
+                書き出し
+              </button>
+              <label className="button button-secondary file-button">
+                取り込み
+                <input type="file" accept="application/json,.json" onChange={handleImportPreset} />
+              </label>
+            </div>
+            {presetMessage && <p className="inline-success">{presetMessage}</p>}
+            {presetError && <p className="inline-error">{presetError}</p>}
+          </section>
+
+          <section className="control-section">
+            <SectionHeading number="02" title="Offkaiから読み込む" />
             <form className="import-form" onSubmit={handleImport}>
               <label className="field-label" htmlFor="offkai-url">
                 参加者URL
@@ -444,7 +620,7 @@ export function App() {
           </section>
 
           <section className="control-section">
-            <SectionHeading number="02" title="テキスト" />
+            <SectionHeading number="03" title="テキスト" />
             <Field label="見出し" value={receipt.heading} onChange={(value) => updateReceipt('heading', value)} />
             <Field label="サブ見出し" value={receipt.subtitle} onChange={(value) => updateReceipt('subtitle', value)} />
             <Field label="日時・会場" value={receipt.dateVenue} onChange={(value) => updateReceipt('dateVenue', value)} />
@@ -465,7 +641,7 @@ export function App() {
           </section>
 
           <section className="control-section">
-            <SectionHeading number="03" title="ロゴとフォント" />
+            <SectionHeading number="04" title="ロゴとフォント" />
             <label className="upload-button">
               <span>ロゴ画像をアップロード</span>
               <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoUpload} />
@@ -517,8 +693,8 @@ export function App() {
           </section>
 
           <section className="control-section">
-            <SectionHeading number="04" title="印刷設定" />
-            <div className="two-column-fields">
+            <SectionHeading number="05" title="印刷設定" />
+            <div className="two-column-fields three-column-fields">
               <label className="field-group">
                 <span className="field-label">前余白（mm）</span>
                 <input className="text-input" type="number" min={0} max={MAX_PADDING / DOTS_PER_MM} step={1} value={paddingBefore / DOTS_PER_MM} onChange={(event) => setPaddingBefore(paddingFromMillimeters(event.target.value))} />
@@ -526,6 +702,10 @@ export function App() {
               <label className="field-group">
                 <span className="field-label">後余白（mm）</span>
                 <input className="text-input" type="number" min={0} max={MAX_PADDING / DOTS_PER_MM} step={1} value={paddingAfter / DOTS_PER_MM} onChange={(event) => setPaddingAfter(paddingFromMillimeters(event.target.value))} />
+              </label>
+              <label className="field-group">
+                <span className="field-label">上下余白（mm）</span>
+                <input className="text-input" type="number" min={0} max={Math.floor((printWidth - 8) / 2 / DOTS_PER_MM)} step={0.5} value={rasterMargin / DOTS_PER_MM} onChange={(event) => updateRasterMargin(Number(event.target.value) * DOTS_PER_MM)} />
               </label>
             </div>
             <details className="advanced-settings">
@@ -549,10 +729,6 @@ export function App() {
                   </label>
                 </div>
                 <div className="two-column-fields">
-                  <label className="field-group">
-                    <span className="field-label">左右余白（dot）</span>
-                    <input className="text-input" type="number" min={0} max={Math.floor((printWidth - 8) / 2)} step={1} value={rasterMargin} onChange={(event) => updateRasterMargin(Number(event.target.value))} />
-                  </label>
                   <label className="field-group">
                     <span className="field-label">カット方式</span>
                     <select className="text-input" value={cutMode} onChange={(event) => setCutMode(event.target.value as CutMode)}>
@@ -702,4 +878,30 @@ const IDLE_PRINTER_MESSAGE = '「印刷」を押すとプリンターを選べ�
 
 function paddingFromMillimeters(value: string) {
   return Math.max(0, Math.min(MAX_PADDING, Math.round(Number(value) * DOTS_PER_MM) || 0));
+}
+
+function loadLogo(dataUrl: string) {
+  return new Promise<LogoAsset>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve({ ...trimLogo(image), dataUrl });
+    image.onerror = () => reject(new Error('ロゴ画像を読み込めませんでした。'));
+    image.src = dataUrl;
+  });
+}
+
+async function fetchDataUrl(url: string) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+  const blob = await response.blob();
+  if (!blob.type.startsWith('image/')) {
+    throw new Error('not an image');
+  }
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => (typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('read failed')));
+    reader.onerror = () => reject(new Error('read failed'));
+    reader.readAsDataURL(blob);
+  });
 }
