@@ -3,13 +3,20 @@ import {
   defaultReceipt,
   drawReceipt,
   createPrinterCanvas,
+  fitLogoPosition,
+  MAX_LOGO_OFFSET_X,
+  MAX_LOGO_OFFSET_Y,
+  trimLogo,
+  MAX_PADDING,
   type LogoAsset,
+  type PrintRotation,
   type ReceiptState
 } from './receipt';
-import { encodeEscPosRaster, MAX_FEED_BEFORE_CUT, MAX_PRINT_WIDTH, MIN_PRINT_WIDTH, type CutMode } from './escpos';
-import { disconnectSerial, hasSerialSupport, requestSerialConnection, writeEscPos, type SerialConnection } from './serial';
+import { encodeEscPosRaster, encodeEscPosRasterParts, encodeEscPosTextTest, MAX_FEED_BEFORE_CUT, MAX_HEATING, MAX_PRINT_WIDTH, MIN_PRINT_WIDTH, type CutMode } from './escpos';
+import { hasBluetoothSupport, requestBluetoothConnection } from './bluetooth';
+import type { PrinterConnection } from './printer';
 import { Button as ParkButton } from './components/ui/button';
-import { createPersistedEditor, MAX_LOGO_DATA_URL_LENGTH, readPersistedEditor, writePersistedEditor } from './persistence';
+import { createPersistedEditor, DEFAULT_PADDING, MAX_LOGO_DATA_URL_LENGTH, readPersistedEditor, writePersistedEditor } from './persistence';
 import './styles.css';
 
 type ImportResponse = {
@@ -39,13 +46,18 @@ export function App() {
   const [importError, setImportError] = useState('');
   const [printWidth, setPrintWidth] = useState(384);
   const [rasterMargin, setRasterMargin] = useState(0);
-  const [cutMode, setCutMode] = useState<CutMode>('full');
+  const [paddingBefore, setPaddingBefore] = useState(DEFAULT_PADDING);
+  const [paddingAfter, setPaddingAfter] = useState(DEFAULT_PADDING);
+  const [cutMode, setCutMode] = useState<CutMode>('none');
   const [feedBeforeCut, setFeedBeforeCut] = useState(0);
-  const [rotateForPrint, setRotateForPrint] = useState(false);
+  const [heating, setHeating] = useState(0);
+  const [dither, setDither] = useState(true);
+  const [printRotation, setPrintRotation] = useState<PrintRotation>('clockwise');
   const [chunkSize, setChunkSize] = useState(180);
-  const [serialConnection, setSerialConnection] = useState<SerialConnection | null>(null);
-  const [serialMessage, setSerialMessage] = useState('未接続');
-  const [serialError, setSerialError] = useState('');
+  const [bluetoothName, setBluetoothName] = useState('');
+  const [printerConnection, setPrinterConnection] = useState<PrinterConnection | null>(null);
+  const [printerMessage, setPrinterMessage] = useState(IDLE_PRINTER_MESSAGE);
+  const [printerError, setPrinterError] = useState('');
   const [printing, setPrinting] = useState(false);
   const [exportError, setExportError] = useState('');
   const [fontReady, setFontReady] = useState(false);
@@ -53,7 +65,7 @@ export function App() {
   const [persistenceMessage, setPersistenceMessage] = useState('');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const printAbortRef = useRef<AbortController | null>(null);
-  const serialSupported = typeof navigator !== 'undefined' && hasSerialSupport();
+  const bluetoothSupported = typeof navigator !== 'undefined' && hasBluetoothSupport();
   const activeLogo = receipt.logoMode === 'upload' ? uploadedLogo : referenceLogo;
   const offkaiImportAvailable = import.meta.env.DEV || import.meta.env.VITE_STATIC_DEPLOY !== 'true';
 
@@ -63,20 +75,20 @@ export function App() {
       setReceipt(stored.receipt);
       setPrintWidth(stored.settings.printWidth);
       setRasterMargin(stored.settings.rasterMargin);
-      setCutMode(stored.settings.cutMode);
+      setPaddingBefore(stored.settings.paddingBefore);
+      setPaddingAfter(stored.settings.paddingAfter);
+      setCutMode(stored.settings.paperCut);
       setFeedBeforeCut(stored.settings.feedBeforeCut);
-      setRotateForPrint(stored.settings.rotateForPrint);
+      setHeating(stored.settings.heating);
+      setDither(stored.settings.dither);
+      setPrintRotation(stored.settings.printRotation);
       setChunkSize(stored.settings.chunkSize);
+      setBluetoothName(stored.settings.bluetoothName);
       setIncludeAttendeeSerial(stored.settings.includeAttendeeSerial);
       if (stored.logo) {
         const image = new Image();
         image.onload = () => {
-          setUploadedLogo({
-            source: image,
-            width: stored.logo?.width || image.naturalWidth,
-            height: stored.logo?.height || image.naturalHeight,
-            dataUrl: stored.logo?.dataUrl
-          });
+          setUploadedLogo({ ...trimLogo(image), dataUrl: stored.logo?.dataUrl });
         };
         image.onerror = () => {
           setReceipt((current) => ({ ...current, logoMode: 'reference' }));
@@ -137,10 +149,15 @@ export function App() {
         {
           printWidth,
           rasterMargin,
-          cutMode,
+          paddingBefore,
+          paddingAfter,
+          paperCut: cutMode,
           feedBeforeCut,
-          rotateForPrint,
+          heating,
+          dither,
+          printRotation,
           chunkSize,
+          bluetoothName,
           includeAttendeeSerial
         },
         uploadedLogo
@@ -154,7 +171,7 @@ export function App() {
           : '自動保存済み'
         : '保存容量不足のため自動保存できません'
     );
-  }, [chunkSize, cutMode, feedBeforeCut, includeAttendeeSerial, printWidth, rasterMargin, receipt, restored, rotateForPrint, uploadedLogo]);
+  }, [bluetoothName, chunkSize, cutMode, dither, feedBeforeCut, heating, includeAttendeeSerial, paddingAfter, paddingBefore, printWidth, rasterMargin, receipt, restored, printRotation, uploadedLogo]);
 
   function updateReceipt<K extends keyof ReceiptState>(key: K, value: ReceiptState[K]) {
     setReceipt((current) => ({ ...current, [key]: value }));
@@ -200,13 +217,9 @@ export function App() {
       const dataUrl = reader.result;
       const image = new Image();
       image.onload = () => {
-        setUploadedLogo({
-          source: image,
-          width: image.naturalWidth,
-          height: image.naturalHeight,
-          dataUrl
-        });
-        updateReceipt('logoMode', 'upload');
+        const logo = { ...trimLogo(image), dataUrl };
+        setUploadedLogo(logo);
+        setReceipt((current) => ({ ...current, ...fitLogoPosition(), logoMode: 'upload' }));
       };
       image.onerror = () => setExportError('ロゴ画像を読み込めませんでした。');
       image.src = dataUrl;
@@ -289,8 +302,8 @@ export function App() {
 
   function handleRawExport() {
     try {
-      const canvas = createPrinterCanvas(receipt, activeLogo, printWidth, rotateForPrint, rasterMargin);
-      const bytes = encodeEscPosRaster(canvas, { cutMode, feedBeforeCut });
+      const canvas = createPrinterCanvas(receipt, activeLogo, printWidth, printRotation, rasterMargin, paddingBefore, paddingAfter);
+      const bytes = encodeEscPosRaster(canvas, { cutMode, feedBeforeCut, heating, dither });
       downloadBlob(new Blob([bytes], { type: 'application/octet-stream' }), 'offkai-ticket.escpos.bin');
       setExportError('');
     } catch (error) {
@@ -298,44 +311,72 @@ export function App() {
     }
   }
 
-  async function handleSerialConnect() {
-    setSerialError('');
-    setSerialMessage('シリアルポートを選択してください。');
+  async function handlePrinterConnect(showAll = false) {
+    setPrinterError('');
+    setPrinterMessage('プリンターを選択してください');
     try {
-      const connection = await requestSerialConnection();
-      setSerialConnection(connection);
-      setSerialMessage('接続中: シリアルポート');
+      const connection = await requestBluetoothConnection(
+        () => {
+          printAbortRef.current?.abort();
+          setPrinterConnection(null);
+          setPrinterMessage(IDLE_PRINTER_MESSAGE);
+          setPrinterError('プリンターとの接続が切れました。もう一度「印刷」を押すと再接続します。');
+        },
+        bluetoothName,
+        showAll
+      );
+      setPrinterConnection(connection);
+      if (connection.deviceName) {
+        setBluetoothName(connection.deviceName);
+      }
+      setPrinterMessage(`接続中: ${connection.label}`);
+      return connection;
     } catch (error) {
-      setSerialMessage('未接続');
-      setSerialError(error instanceof Error ? error.message : 'シリアルポート接続に失敗しました。');
+      setPrinterMessage(IDLE_PRINTER_MESSAGE);
+      if (!(error instanceof DOMException && error.name === 'NotFoundError')) {
+        setPrinterError(error instanceof Error ? error.message : 'プリンターに接続できませんでした。電源を入れて再試行してください。');
+      }
+      return null;
     }
   }
 
-  async function handleSerialDisconnect() {
-    await disconnectSerial(serialConnection);
-    setSerialConnection(null);
-    setSerialMessage('未接続');
+  async function handlePrinterDisconnect() {
+    await printerConnection?.disconnect();
+    setPrinterConnection(null);
+    setPrinterMessage(IDLE_PRINTER_MESSAGE);
   }
 
   async function handlePrint() {
-    if (!serialConnection) {
-      setSerialError('先にシリアルポートへ接続してください。');
+    await sendToPrinter(() => {
+      const canvas = createPrinterCanvas(receipt, activeLogo, printWidth, printRotation, rasterMargin, paddingBefore, paddingAfter);
+      return encodeEscPosRasterParts(canvas, { cutMode, feedBeforeCut, heating, dither });
+    });
+  }
+
+  async function handleTestPrint() {
+    await sendToPrinter(() => encodeEscPosTextTest(heating));
+  }
+
+  async function sendToPrinter(encode: () => Uint8Array[]) {
+    const connection = printerConnection ?? (await handlePrinterConnect());
+    if (!connection) {
       return;
     }
     const controller = new AbortController();
     printAbortRef.current = controller;
     setPrinting(true);
-    setSerialError('');
+    setPrinterError('');
+    setPrinterMessage(`印刷中: ${connection.label}`);
     try {
-      const canvas = createPrinterCanvas(receipt, activeLogo, printWidth, rotateForPrint, rasterMargin);
-      const bytes = encodeEscPosRaster(canvas, { cutMode, feedBeforeCut });
-      await writeEscPos(serialConnection, bytes, chunkSize, controller.signal);
-      setSerialMessage(`送信完了: ${bytes.length.toLocaleString()} bytes`);
+      const parts = encode();
+      await connection.write(parts, chunkSize, controller.signal);
+      setPrinterMessage(`印刷しました: ${connection.label}`);
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
-        setSerialMessage('印刷をキャンセルしました。');
+        setPrinterMessage('印刷を中止しました');
       } else {
-        setSerialError(error instanceof Error ? error.message : '印刷に失敗しました。');
+        setPrinterMessage(`接続中: ${connection.label}`);
+        setPrinterError(error instanceof Error ? error.message : '印刷できませんでした。プリンターの電源と用紙を確認してください。');
       }
     } finally {
       setPrinting(false);
@@ -352,29 +393,15 @@ export function App() {
       <header className="topbar">
         <div className="brand-lockup">
           <div className="brand-mark">RP</div>
-          <div>
-            <p className="eyebrow">OFFKAI / ESC-POS</p>
-            <h1>Receipt Printer</h1>
-          </div>
-        </div>
-        <div className="topbar-meta">
-          <span className="status-dot" />
-          <span>ローカル編集</span>
-          <span className="version-chip">BETA</span>
+          <h1>Receipt Printer</h1>
         </div>
       </header>
 
       <main className="workspace">
         <aside className="editor-panel">
           <div className="panel-heading">
-            <div>
-              <p className="eyebrow pink">TICKET EDITOR</p>
-              <h2>帳票をつくる</h2>
-            </div>
-            <div className="panel-heading-meta">
-              <span className="dimension-chip">1819 × 685</span>
-              {persistenceMessage && <span className="save-chip">{persistenceMessage}</span>}
-            </div>
+            <h2>帳票をつくる</h2>
+            {persistenceMessage && <span className="save-chip">{persistenceMessage}</span>}
           </div>
 
           <section className="control-section">
@@ -446,25 +473,33 @@ export function App() {
             <button
               className={`button button-secondary ${receipt.logoMode === 'reference' ? 'is-active' : ''}`}
               type="button"
-              onClick={() => updateReceipt('logoMode', 'reference')}
+              onClick={() =>
+                setReceipt((current) => ({
+                  ...current,
+                  logoMode: 'reference',
+                  logoOffsetX: defaultReceipt.logoOffsetX,
+                  logoOffsetY: defaultReceipt.logoOffsetY,
+                  logoScale: defaultReceipt.logoScale
+                }))
+              }
             >
               見本ロゴに戻す
             </button>
             <RangeField
-              label={`横位置 ${receipt.logoX}px`}
-              min={0}
-              max={320}
+              label={`横位置 ${receipt.logoOffsetX > 0 ? '+' : ''}${receipt.logoOffsetX}px（0で中央）`}
+              min={-MAX_LOGO_OFFSET_X}
+              max={MAX_LOGO_OFFSET_X}
               step={1}
-              value={receipt.logoX}
-              onChange={(value) => updateReceipt('logoX', value)}
+              value={receipt.logoOffsetX}
+              onChange={(value) => updateReceipt('logoOffsetX', value)}
             />
             <RangeField
-              label={`縦位置 ${receipt.logoY}px`}
-              min={60}
-              max={360}
+              label={`縦位置 ${receipt.logoOffsetY > 0 ? '+' : ''}${receipt.logoOffsetY}px（0で中央）`}
+              min={-MAX_LOGO_OFFSET_Y}
+              max={MAX_LOGO_OFFSET_Y}
               step={1}
-              value={receipt.logoY}
-              onChange={(value) => updateReceipt('logoY', value)}
+              value={receipt.logoOffsetY}
+              onChange={(value) => updateReceipt('logoOffsetY', value)}
             />
             <RangeField
               label={`拡大率 ${Math.round(receipt.logoScale * 100)}%`}
@@ -479,134 +514,116 @@ export function App() {
               <input type="file" accept=".woff,.woff2,.ttf,.ttc,.otf,font/woff,font/woff2,font/ttf,font/otf" onChange={handleFontUpload} />
             </label>
             <p className="helper-text font-name">{fontFileName}</p>
-            <p className="helper-text">IBM Plex Sansを主フォントに、日本語と「○」はIBM Plex Sans JPへフォールバックします。</p>
           </section>
 
           <section className="control-section">
             <SectionHeading number="04" title="印刷設定" />
             <div className="two-column-fields">
               <label className="field-group">
-                <span className="field-label">印字幅（dot）</span>
-                <input className="text-input" type="number" min={MIN_PRINT_WIDTH} max={MAX_PRINT_WIDTH} step={8} value={printWidth} onChange={(event) => updatePrintWidth(Number(event.target.value))} />
+                <span className="field-label">前余白（mm）</span>
+                <input className="text-input" type="number" min={0} max={MAX_PADDING / DOTS_PER_MM} step={1} value={paddingBefore / DOTS_PER_MM} onChange={(event) => setPaddingBefore(paddingFromMillimeters(event.target.value))} />
               </label>
               <label className="field-group">
-                <span className="field-label">向き</span>
-                <select className="text-input" value={rotateForPrint ? 'rotate' : 'wide'} onChange={(event) => setRotateForPrint(event.target.value === 'rotate')}>
-                  <option value="wide">横向き</option>
-                  <option value="rotate">縦送りに回転</option>
-                </select>
+                <span className="field-label">後余白（mm）</span>
+                <input className="text-input" type="number" min={0} max={MAX_PADDING / DOTS_PER_MM} step={1} value={paddingAfter / DOTS_PER_MM} onChange={(event) => setPaddingAfter(paddingFromMillimeters(event.target.value))} />
               </label>
             </div>
-            <p className="helper-text">初期値384 dot（一般的な58mm幅）。内容は指定幅内に収めます。</p>
-            <div className="two-column-fields">
-              <label className="field-group">
-                <span className="field-label">左右余白（dot）</span>
-                <input className="text-input" type="number" min={0} max={Math.floor((printWidth - 8) / 2)} step={1} value={rasterMargin} onChange={(event) => updateRasterMargin(Number(event.target.value))} />
-              </label>
-              <label className="field-group">
-                <span className="field-label">カット方式</span>
-                <select className="text-input" value={cutMode} onChange={(event) => setCutMode(event.target.value as CutMode)}>
-                  <option value="full">全切り（GS V65）</option>
-                  <option value="partial">部分切り（GS V66）</option>
-                  <option value="none">カットなし</option>
-                </select>
-              </label>
-            </div>
-            <label className="field-group">
-              <span className="field-label">追加送り（ESC/POS n単位）</span>
-              <input className="text-input" type="number" min={0} max={MAX_FEED_BEFORE_CUT} step={1} value={feedBeforeCut} onChange={(event) => updateFeedBeforeCut(Number(event.target.value))} />
-            </label>
-            <p className="helper-text">0は既定送り。カットありはGS V65/66、カットなしはESC Jで送り、単位は機種依存です。</p>
-            <label className="field-group">
-                <span className="field-label">シリアル分割サイズ</span>
-                <input className="text-input" type="number" min={20} max={512} step={1} value={chunkSize} onChange={(event) => setChunkSize(Math.max(20, Math.min(512, Number(event.target.value) || 180)))} />
-            </label>
-            <div className="action-row">
-              <button className="button button-secondary" type="button" onClick={handlePngExport}>
-                PNGを書き出す
-              </button>
-              <button className="button button-secondary" type="button" onClick={handleRawExport}>
-                ESC/POS .bin
-              </button>
-            </div>
-            {exportError && <p className="inline-error">{exportError}</p>}
-          </section>
-
-          <section className="control-section serial-section">
-            <SectionHeading number="05" title="シリアル印刷" />
-            <p className={`support-line ${serialSupported ? 'supported' : 'unsupported'}`}>
-              <span className="support-dot" />
-              {serialSupported ? 'Web Serialを利用できます' : 'このブラウザではWeb Serialを利用できません'}
-            </p>
-            <div className="action-row">
-              <button className="button button-primary" type="button" onClick={handleSerialConnect} disabled={!serialSupported || Boolean(serialConnection)}>
-                シリアルポートを選択
-              </button>
-              <button className="button button-secondary" type="button" onClick={handleSerialDisconnect} disabled={!serialConnection}>
-                切断
-              </button>
-            </div>
-            <div className="connection-status">
-              <span className={`status-dot ${serialConnection ? 'is-connected' : ''}`} />
-              <span>{serialMessage}</span>
-            </div>
-            <button className="button button-print" type="button" onClick={printing ? cancelPrint : handlePrint} disabled={!printing && !serialConnection}>
-              {printing ? '印刷を中止' : 'ESC/POSを送信'}
-            </button>
-            {serialError && <p className="inline-error">{serialError}</p>}
-            <p className="helper-text">Bluetoothペアリング済みのプリンターをシリアルポートとして選択します。実機がない場合は .bin を保存して送信内容を確認できます。</p>
+            <details className="advanced-settings">
+              <summary>詳細設定</summary>
+              <div className="advanced-body">
+                <label className="check-row">
+                  <input type="checkbox" checked={dither} onChange={(event) => setDither(event.target.checked)} />
+                  <span>写真やロゴをディザリングで印刷する</span>
+                </label>
+                <div className="two-column-fields">
+                  <label className="field-group">
+                    <span className="field-label">向き</span>
+                    <select className="text-input" value={printRotation} onChange={(event) => setPrintRotation(event.target.value as PrintRotation)}>
+                      <option value="clockwise">右90°回転</option>
+                      <option value="counterclockwise">左90°回転</option>
+                    </select>
+                  </label>
+                  <label className="field-group">
+                    <span className="field-label">印字幅（dot）</span>
+                    <input className="text-input" type="number" min={MIN_PRINT_WIDTH} max={MAX_PRINT_WIDTH} step={8} value={printWidth} onChange={(event) => updatePrintWidth(Number(event.target.value))} />
+                  </label>
+                </div>
+                <div className="two-column-fields">
+                  <label className="field-group">
+                    <span className="field-label">左右余白（dot）</span>
+                    <input className="text-input" type="number" min={0} max={Math.floor((printWidth - 8) / 2)} step={1} value={rasterMargin} onChange={(event) => updateRasterMargin(Number(event.target.value))} />
+                  </label>
+                  <label className="field-group">
+                    <span className="field-label">カット方式</span>
+                    <select className="text-input" value={cutMode} onChange={(event) => setCutMode(event.target.value as CutMode)}>
+                      <option value="none">カットなし</option>
+                      <option value="full">全切り</option>
+                      <option value="partial">部分切り</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="two-column-fields">
+                  <label className="field-group">
+                    <span className="field-label">追加送り</span>
+                    <input className="text-input" type="number" min={0} max={MAX_FEED_BEFORE_CUT} step={1} value={feedBeforeCut} onChange={(event) => updateFeedBeforeCut(Number(event.target.value))} />
+                  </label>
+                  <label className="field-group">
+                    <span className="field-label">加熱時間（0で既定）</span>
+                    <input className="text-input" type="number" min={0} max={MAX_HEATING} step={1} value={heating} onChange={(event) => setHeating(Math.max(0, Math.min(MAX_HEATING, Math.floor(Number(event.target.value)) || 0)))} />
+                  </label>
+                </div>
+                <label className="field-group">
+                  <span className="field-label">送信分割サイズ（最大182）</span>
+                  <input className="text-input" type="number" min={20} max={512} step={1} value={chunkSize} onChange={(event) => setChunkSize(Math.max(20, Math.min(512, Number(event.target.value) || 180)))} />
+                </label>
+                <div className="action-row">
+                  <button className="button button-secondary" type="button" onClick={handleTestPrint} disabled={printing || !printerConnection}>
+                    テスト印字
+                  </button>
+                  <button className="button button-secondary" type="button" onClick={() => handlePrinterConnect(true)} disabled={!bluetoothSupported || Boolean(printerConnection)}>
+                    全デバイスから接続
+                  </button>
+                </div>
+                <div className="action-row">
+                  <button className="button button-secondary" type="button" onClick={handlePngExport}>
+                    PNGを保存
+                  </button>
+                  <button className="button button-secondary" type="button" onClick={handleRawExport}>
+                    印刷データを保存
+                  </button>
+                </div>
+                {exportError && <p className="inline-error">{exportError}</p>}
+              </div>
+            </details>
           </section>
         </aside>
 
         <section className="preview-panel">
-          <div className="preview-heading">
-            <div>
-              <p className="eyebrow pink">LIVE CANVAS</p>
-              <h2>ライブプレビュー</h2>
+          <div className="print-bar">
+            <div className="print-status">
+              <span className={`status-dot ${printerConnection ? 'is-connected' : ''}`} />
+              <span>{printerMessage}</span>
             </div>
-            <div className="preview-heading-meta">
-              <span>共通レンダラー</span>
-              <span className="live-chip"><span className="status-dot is-connected" /> LIVE</span>
+            <div className="print-actions">
+              {printerConnection && (
+                <button className="button button-secondary" type="button" onClick={handlePrinterDisconnect} disabled={printing}>
+                  切断
+                </button>
+              )}
+              <button className={`button ${printing ? 'button-secondary' : 'button-primary'}`} type="button" onClick={printing ? cancelPrint : handlePrint} disabled={!bluetoothSupported}>
+                {printing ? '印刷を中止' : '印刷'}
+              </button>
             </div>
           </div>
+          {!bluetoothSupported && <p className="inline-error">このブラウザはBluetooth接続に対応していません。デスクトップ版Chromeで開いてください。</p>}
+          {printerError && <p className="inline-error">{printerError}</p>}
           <div className="canvas-stage">
             <div className="canvas-frame">
               <canvas ref={canvasRef} className="receipt-canvas" aria-label="編集可能なチケットプレビュー" />
             </div>
-            <div className="canvas-caption">
-              <span>1819 × 685 px</span>
-              <span>PNG / ESC-POS raster</span>
-            </div>
-          </div>
-          <div className="preview-notes">
-            <div className="note-card">
-              <span className="note-index">A</span>
-              <div>
-                <strong>白黒ラスタ</strong>
-                <p>同じCanvas描画から印刷用データを生成します。</p>
-              </div>
-            </div>
-            <div className="note-card">
-              <span className="note-index">B</span>
-              <div>
-                <strong>フォントについて</strong>
-                <p>見本のフォント名は未特定。必要なら許諾済みファイルを読み込めます。</p>
-              </div>
-            </div>
-            <div className="note-card">
-              <span className="note-index">C</span>
-              <div>
-                <strong>ハードウェア</strong>
-                <p>シリアルポート未接続時の送信は実行しません。</p>
-              </div>
-            </div>
           </div>
         </section>
       </main>
-      <footer className="footer-bar">
-        <span>Receipt Printer / local-only workspace</span>
-        <span>Park UI palette · #e4007f</span>
-      </footer>
     </div>
   );
 }
@@ -678,4 +695,11 @@ function downloadBlob(blob: Blob, fileName: string) {
   anchor.download = fileName;
   anchor.click();
   URL.revokeObjectURL(url);
+}
+
+const DOTS_PER_MM = 8;
+const IDLE_PRINTER_MESSAGE = '「印刷」を押すとプリンターを選べます';
+
+function paddingFromMillimeters(value: string) {
+  return Math.max(0, Math.min(MAX_PADDING, Math.round(Number(value) * DOTS_PER_MM) || 0));
 }

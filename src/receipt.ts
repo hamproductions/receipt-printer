@@ -2,8 +2,14 @@ import { MAX_PRINT_WIDTH, MIN_PRINT_WIDTH } from './escpos';
 
 export const RECEIPT_WIDTH = 1819;
 export const RECEIPT_HEIGHT = 685;
+export const MAX_PADDING = 1000;
+export const MAX_LOGO_OFFSET_X = 280;
+export const MAX_LOGO_OFFSET_Y = 300;
+const LOGO_BOX = { width: 520, height: RECEIPT_HEIGHT - 40 };
+const LOGO_AREA = { left: 10, top: 10, right: 575, bottom: RECEIPT_HEIGHT - 10 };
 
 export type LogoMode = 'reference' | 'upload';
+export type PrintRotation = 'clockwise' | 'counterclockwise';
 
 export type ReceiptState = {
   heading: string;
@@ -13,8 +19,8 @@ export type ReceiptState = {
   serial: string;
   notices: string[];
   logoMode: LogoMode;
-  logoX: number;
-  logoY: number;
+  logoOffsetX: number;
+  logoOffsetY: number;
   logoScale: number;
   fontFamily: string;
 };
@@ -41,8 +47,8 @@ export const defaultReceipt: ReceiptState = {
     '※本券は再発行できません。本券は公演終了まで大切にお持ちください。'
   ],
   logoMode: 'reference',
-  logoX: 20,
-  logoY: 220,
+  logoOffsetX: -13,
+  logoOffsetY: 28,
   logoScale: 1,
   fontFamily: 'IBM Plex Sans Local'
 };
@@ -116,25 +122,65 @@ export function drawReceipt(
   return canvas;
 }
 
+export function trimLogo(source: HTMLImageElement): LogoAsset {
+  const width = source.naturalWidth;
+  const height = source.naturalHeight;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) {
+    return { source, width, height };
+  }
+  context.drawImage(source, 0, 0);
+  const data = context.getImageData(0, 0, width, height).data;
+  let left = width;
+  let top = height;
+  let right = -1;
+  let bottom = -1;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      const luminance = 0.299 * data[offset] + 0.587 * data[offset + 1] + 0.114 * data[offset + 2];
+      if (data[offset + 3] > 16 && luminance < 245) {
+        left = Math.min(left, x);
+        right = Math.max(right, x);
+        top = Math.min(top, y);
+        bottom = Math.max(bottom, y);
+      }
+    }
+  }
+  if (right < 0) {
+    return { source, width, height };
+  }
+  return { source, width, height, crop: { x: left, y: top, width: right - left + 1, height: bottom - top + 1 } };
+}
+
+export function fitLogoPosition() {
+  return { logoOffsetX: 0, logoOffsetY: 0, logoScale: 1 };
+}
+
 function drawLogo(context: CanvasRenderingContext2D, state: ReceiptState, logo: LogoAsset | null) {
   if (!logo) {
     return;
   }
 
   const crop = logo.crop ?? { x: 0, y: 0, width: logo.width, height: logo.height };
-  const targetWidth = crop.width * state.logoScale;
-  const targetHeight = crop.height * state.logoScale;
-  context.drawImage(
-    logo.source,
-    crop.x,
-    crop.y,
-    crop.width,
-    crop.height,
-    state.logoX,
-    state.logoY,
-    targetWidth,
-    targetHeight
+  const areaWidth = LOGO_AREA.right - LOGO_AREA.left;
+  const areaHeight = LOGO_AREA.bottom - LOGO_AREA.top;
+  const scale = Math.min(
+    Math.min(LOGO_BOX.width / crop.width, LOGO_BOX.height / crop.height) * state.logoScale,
+    areaWidth / crop.width,
+    areaHeight / crop.height
   );
+  const targetWidth = crop.width * scale;
+  const targetHeight = crop.height * scale;
+  const x = clamp((LOGO_AREA.left + LOGO_AREA.right - targetWidth) / 2 + state.logoOffsetX, LOGO_AREA.left, LOGO_AREA.right - targetWidth);
+  const y = clamp((RECEIPT_HEIGHT - targetHeight) / 2 + state.logoOffsetY, LOGO_AREA.top, LOGO_AREA.bottom - targetHeight);
+  context.save();
+  context.filter = 'grayscale(1)';
+  context.drawImage(logo.source, crop.x, crop.y, crop.width, crop.height, x, y, targetWidth, targetHeight);
+  context.restore();
 }
 
 function drawTextRun(
@@ -155,8 +201,10 @@ export function createPrinterCanvas(
   state: ReceiptState,
   logo: LogoAsset | null,
   width: number,
-  rotate: boolean,
-  marginDots = 0
+  rotation: PrintRotation,
+  marginDots = 0,
+  paddingBefore = 0,
+  paddingAfter = 0
 ) {
   const selectedWidth = Math.round(width);
   const margin = Math.floor(marginDots);
@@ -167,35 +215,37 @@ export function createPrinterCanvas(
     throw new Error('左右余白が印字幅を超えています。');
   }
 
+  for (const padding of [paddingBefore, paddingAfter]) {
+    if (!Number.isInteger(padding) || padding < 0 || padding > MAX_PADDING) {
+      throw new Error(`前後余白は0〜${MAX_PADDING}ドットの整数で指定してください。`);
+    }
+  }
+
   const base = document.createElement('canvas');
   drawReceipt(base, state, logo);
   const contentWidth = selectedWidth - margin * 2;
-  const scale = contentWidth / (rotate ? RECEIPT_HEIGHT : RECEIPT_WIDTH);
+  const scale = contentWidth / RECEIPT_HEIGHT;
   const canvas = document.createElement('canvas');
-
-  if (rotate) {
-    canvas.width = selectedWidth;
-    canvas.height = Math.round(RECEIPT_WIDTH * scale);
-    const context = canvas.getContext('2d');
-    if (!context) {
-      throw new Error('Canvas 2D context is unavailable');
-    }
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.translate(canvas.width - margin, 0);
-    context.rotate(Math.PI / 2);
-    context.drawImage(base, 0, 0, Math.round(RECEIPT_WIDTH * scale), Math.round(RECEIPT_HEIGHT * scale));
-    return canvas;
-  }
-
   canvas.width = selectedWidth;
-  canvas.height = Math.round(RECEIPT_HEIGHT * scale);
+  const contentHeight = Math.round(RECEIPT_WIDTH * scale);
+  canvas.height = paddingBefore + contentHeight + paddingAfter;
   const context = canvas.getContext('2d');
   if (!context) {
     throw new Error('Canvas 2D context is unavailable');
   }
   context.fillStyle = '#ffffff';
   context.fillRect(0, 0, canvas.width, canvas.height);
-  context.drawImage(base, margin, 0, contentWidth, canvas.height);
+  if (rotation === 'clockwise') {
+    context.translate(canvas.width - margin, paddingBefore);
+    context.rotate(Math.PI / 2);
+  } else {
+    context.translate(margin, paddingBefore + contentHeight);
+    context.rotate(-Math.PI / 2);
+  }
+  context.drawImage(base, 0, 0, contentHeight, Math.round(RECEIPT_HEIGHT * scale));
   return canvas;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
 }

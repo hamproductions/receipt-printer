@@ -1,8 +1,9 @@
-import { defaultReceipt, type LogoAsset, type ReceiptState } from './receipt';
-import { MAX_FEED_BEFORE_CUT, MAX_PRINT_WIDTH, MIN_PRINT_WIDTH, type CutMode } from './escpos';
+import { defaultReceipt, MAX_LOGO_OFFSET_X, MAX_LOGO_OFFSET_Y, MAX_PADDING, type LogoAsset, type PrintRotation, type ReceiptState } from './receipt';
+import { MAX_FEED_BEFORE_CUT, MAX_HEATING, MAX_PRINT_WIDTH, MIN_PRINT_WIDTH, type CutMode } from './escpos';
 
 const STORAGE_KEY = 'receipt-printer:editor:v1';
 export const MAX_LOGO_DATA_URL_LENGTH = 1_500_000;
+export const DEFAULT_PADDING = 48;
 
 export type PersistedEditor = {
   version: 1;
@@ -10,10 +11,15 @@ export type PersistedEditor = {
   settings: {
     printWidth: number;
     rasterMargin: number;
-    cutMode: CutMode;
+    paddingBefore: number;
+    paddingAfter: number;
+    paperCut: CutMode;
     feedBeforeCut: number;
-    rotateForPrint: boolean;
+    heating: number;
+    dither: boolean;
+    printRotation: PrintRotation;
     chunkSize: number;
+    bluetoothName: string;
     includeAttendeeSerial: boolean;
   };
   logo?: {
@@ -129,10 +135,11 @@ function validateReceipt(value: Record<string, unknown>): ReceiptState | null {
     return null;
   }
 
-  const logoX = boundedNumber(value.logoX, 0, 320);
-  const logoY = boundedNumber(value.logoY, 60, 360);
+  const logoMode = value.logoMode === 'upload' ? 'upload' : 'reference';
+  const logoOffsetY = value.logoOffsetY === undefined ? (logoMode === 'upload' ? 0 : defaultReceipt.logoOffsetY) : boundedNumber(value.logoOffsetY, -MAX_LOGO_OFFSET_Y, MAX_LOGO_OFFSET_Y);
+  const logoOffsetX = value.logoOffsetX === undefined ? (logoMode === 'upload' ? 0 : defaultReceipt.logoOffsetX) : boundedNumber(value.logoOffsetX, -MAX_LOGO_OFFSET_X, MAX_LOGO_OFFSET_X);
   const logoScale = boundedNumber(value.logoScale, 0.5, 1.4);
-  if (logoX === null || logoY === null || logoScale === null) {
+  if (logoOffsetX === null || logoOffsetY === null || logoScale === null) {
     return null;
   }
 
@@ -143,9 +150,9 @@ function validateReceipt(value: Record<string, unknown>): ReceiptState | null {
     seat,
     serial,
     notices: [...notices],
-    logoMode: value.logoMode === 'upload' ? 'upload' : 'reference',
-    logoX,
-    logoY,
+    logoMode,
+    logoOffsetX,
+    logoOffsetY,
     logoScale,
     fontFamily: defaultReceipt.fontFamily
   };
@@ -159,13 +166,19 @@ function validateSettings(value: Record<string, unknown>): PersistedEditor['sett
   const printWidth = Math.max(MIN_PRINT_WIDTH, Math.min(MAX_PRINT_WIDTH, Math.round(rawPrintWidth / 8) * 8));
   const rawMargin = value.rasterMargin === undefined ? 0 : boundedNumber(value.rasterMargin, 0, MAX_PRINT_WIDTH);
   const rasterMargin = Math.min(Math.floor(rawMargin ?? 0), Math.floor((printWidth - 8) / 2));
+  const paddingBefore = readPadding(value.paddingBefore);
+  const paddingAfter = readPadding(value.paddingAfter);
   const rawFeed = value.feedBeforeCut === undefined ? 0 : boundedNumber(value.feedBeforeCut, 0, MAX_FEED_BEFORE_CUT);
   const feedBeforeCut = Math.floor(rawFeed ?? 0);
-  const cutMode = value.cutMode === 'partial' || value.cutMode === 'none' ? value.cutMode : 'full';
+  const rawHeating = value.heating === undefined ? 0 : boundedNumber(value.heating, 0, MAX_HEATING);
+  const heating = Math.floor(rawHeating ?? 0);
+  const printRotation = readPrintRotation(value);
+  const paperCut = value.paperCut === 'full' || value.paperCut === 'partial' ? value.paperCut : 'none';
   const chunkSize = boundedNumber(value.chunkSize, 20, 512);
+  const bluetoothName = value.bluetoothName === undefined ? '' : boundedString(value.bluetoothName, 64);
   if (
-    typeof value.rotateForPrint !== 'boolean' ||
     chunkSize === null ||
+    bluetoothName === null ||
     typeof value.includeAttendeeSerial !== 'boolean'
   ) {
     return null;
@@ -173,12 +186,25 @@ function validateSettings(value: Record<string, unknown>): PersistedEditor['sett
   return {
     printWidth,
     rasterMargin,
-    cutMode,
+    paddingBefore,
+    paddingAfter,
+    paperCut,
     feedBeforeCut,
-    rotateForPrint: value.rotateForPrint,
+    heating,
+    dither: value.dither !== false,
+    printRotation,
     chunkSize,
+    bluetoothName,
     includeAttendeeSerial: value.includeAttendeeSerial
   };
+}
+
+function readPadding(value: unknown) {
+  return value === undefined ? DEFAULT_PADDING : Math.floor(boundedNumber(value, 0, MAX_PADDING) ?? DEFAULT_PADDING);
+}
+
+function readPrintRotation(value: Record<string, unknown>): PrintRotation {
+  return value.printRotation === 'counterclockwise' ? 'counterclockwise' : 'clockwise';
 }
 
 function validateLogo(value: unknown) {
