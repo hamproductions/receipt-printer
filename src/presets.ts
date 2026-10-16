@@ -34,6 +34,6 @@ export const BUILT_IN_PRESETS: BuiltInPreset[] = [
       logoOffsetY: 0,
       logoScale: 1
     },
-    logoUrl: `${import.meta.env.BASE_URL}presets/lovelive-fest.png`
+    logoUrl: `${import.meta.env.BASE_URL}presets/lovelive-fest.jpg`
   }
 ];
