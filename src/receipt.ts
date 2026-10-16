@@ -54,10 +54,10 @@ export const defaultReceipt: ReceiptState = {
   logoOffsetX: -13,
   logoOffsetY: 28,
   logoScale: 1,
-  fontFamily: 'IBM Plex Sans Local'
+  fontFamily: 'MS Gothic'
 };
 
-const fallbackFont = '"IBM Plex Sans Local", "IBM Plex Sans JP Local", "MS Gothic", "Osaka-Mono", "Noto Sans Mono CJK JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+const fallbackFont = '"ＭＳ ゴシック", "IBM Plex Sans Local", "IBM Plex Sans JP Local", "Osaka-Mono", "Noto Sans Mono CJK JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
 
 export function drawReceipt(
   canvas: HTMLCanvasElement,
@@ -128,6 +128,20 @@ export function drawReceipt(
 
 export function trimLogo(source: HTMLImageElement): LogoAsset {
   return { source, width: source.naturalWidth, height: source.naturalHeight, crop: contentBox(source) };
+}
+
+export function hasLocalFont(family: string) {
+  const context = document.createElement('canvas').getContext('2d');
+  if (!context) {
+    return false;
+  }
+  const sample = 'あいう漢字ｱｲｳABCabc123';
+  return ['monospace', 'serif', 'sans-serif'].some((generic) => {
+    context.font = `60px ${generic}`;
+    const base = context.measureText(sample).width;
+    context.font = `60px "${family}", ${generic}`;
+    return context.measureText(sample).width !== base;
+  });
 }
 
 export function fitLogoPosition() {

@@ -4,6 +4,7 @@ import {
   drawReceipt,
   createPrinterCanvas,
   fitLogoPosition,
+  hasLocalFont,
   MAX_FEED_BEFORE_CUT,
   MAX_HEATING,
   MAX_LOGO_OFFSET_X,
@@ -70,7 +71,9 @@ export function App() {
   const [receipt, setReceipt] = useState<ReceiptState>(defaultReceipt);
   const [referenceLogo, setReferenceLogo] = useState<LogoAsset | null>(null);
   const [uploadedLogo, setUploadedLogo] = useState<LogoAsset | null>(null);
-  const [fontFileName, setFontFileName] = useState('IBM Plex Sans同梱 / IBM Plex Sans JP同梱');
+  const [fontFileName, setFontFileName] = useState(() =>
+    hasLocalFont('MS Gothic') || hasLocalFont('ＭＳ ゴシック') ? '使用中: MS ゴシック' : '使用中: IBM Plex Sans（この端末にMS ゴシックがないため代替）'
+  );
   const [importUrl, setImportUrl] = useState('');
   const [includeAttendeeSerial, setIncludeAttendeeSerial] = useState(false);
   const [importing, setImporting] = useState(false);
