@@ -1,7 +1,11 @@
-import { MAX_PRINT_WIDTH, MIN_PRINT_WIDTH } from './escpos';
+import { contentBox, layoutForPrinter } from 'escpos-web-print';
 
 export const RECEIPT_WIDTH = 1819;
 export const RECEIPT_HEIGHT = 685;
+export const MIN_PRINT_WIDTH = 128;
+export const MAX_PRINT_WIDTH = 2048;
+export const MAX_FEED_BEFORE_CUT = 255;
+export const MAX_HEATING = 255;
 export const MAX_PADDING = 1000;
 export const MAX_LOGO_OFFSET_X = 280;
 export const MAX_LOGO_OFFSET_Y = 300;
@@ -123,37 +127,7 @@ export function drawReceipt(
 }
 
 export function trimLogo(source: HTMLImageElement): LogoAsset {
-  const width = source.naturalWidth;
-  const height = source.naturalHeight;
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const context = canvas.getContext('2d', { willReadFrequently: true });
-  if (!context) {
-    return { source, width, height };
-  }
-  context.drawImage(source, 0, 0);
-  const data = context.getImageData(0, 0, width, height).data;
-  let left = width;
-  let top = height;
-  let right = -1;
-  let bottom = -1;
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const offset = (y * width + x) * 4;
-      const luminance = 0.299 * data[offset] + 0.587 * data[offset + 1] + 0.114 * data[offset + 2];
-      if (data[offset + 3] > 16 && luminance < 245) {
-        left = Math.min(left, x);
-        right = Math.max(right, x);
-        top = Math.min(top, y);
-        bottom = Math.max(bottom, y);
-      }
-    }
-  }
-  if (right < 0) {
-    return { source, width, height };
-  }
-  return { source, width, height, crop: { x: left, y: top, width: right - left + 1, height: bottom - top + 1 } };
+  return { source, width: source.naturalWidth, height: source.naturalHeight, crop: contentBox(source) };
 }
 
 export function fitLogoPosition() {
@@ -223,54 +197,13 @@ export function createPrinterCanvas(
 
   const base = document.createElement('canvas');
   drawReceipt(base, state, logo);
-  const bounds = findContentBounds(base);
-  const contentWidth = selectedWidth - margin * 2;
-  const scale = contentWidth / bounds.height;
-  const canvas = document.createElement('canvas');
-  canvas.width = selectedWidth;
-  const contentHeight = Math.round(bounds.width * scale);
-  canvas.height = paddingBefore + contentHeight + paddingAfter;
-  const context = canvas.getContext('2d');
-  if (!context) {
-    throw new Error('Canvas 2D context is unavailable');
-  }
-  context.fillStyle = '#ffffff';
-  context.fillRect(0, 0, canvas.width, canvas.height);
-  if (rotation === 'clockwise') {
-    context.translate(canvas.width - margin, paddingBefore);
-    context.rotate(Math.PI / 2);
-  } else {
-    context.translate(margin, paddingBefore + contentHeight);
-    context.rotate(-Math.PI / 2);
-  }
-  context.drawImage(base, bounds.x, bounds.y, bounds.width, bounds.height, 0, 0, contentHeight, contentWidth);
-  return canvas;
-}
-
-function findContentBounds(canvas: HTMLCanvasElement) {
-  const context = canvas.getContext('2d', { willReadFrequently: true });
-  if (!context) {
-    return { x: 0, y: 0, width: canvas.width, height: canvas.height };
-  }
-  const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
-  let left = canvas.width;
-  let top = canvas.height;
-  let right = -1;
-  let bottom = -1;
-  for (let y = 0; y < canvas.height; y += 1) {
-    for (let x = 0; x < canvas.width; x += 1) {
-      const offset = (y * canvas.width + x) * 4;
-      if (data[offset] < 245 || data[offset + 1] < 245 || data[offset + 2] < 245) {
-        left = Math.min(left, x);
-        right = Math.max(right, x);
-        top = Math.min(top, y);
-        bottom = Math.max(bottom, y);
-      }
-    }
-  }
-  return right < 0
-    ? { x: 0, y: 0, width: canvas.width, height: canvas.height }
-    : { x: left, y: top, width: right - left + 1, height: bottom - top + 1 };
+  return layoutForPrinter(base, {
+    printWidth: selectedWidth,
+    rotate: rotation === 'clockwise' ? 90 : 270,
+    margin,
+    paddingBefore,
+    paddingAfter
+  });
 }
 
 function clamp(value: number, min: number, max: number) {

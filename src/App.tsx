@@ -4,17 +4,34 @@ import {
   drawReceipt,
   createPrinterCanvas,
   fitLogoPosition,
+  MAX_FEED_BEFORE_CUT,
+  MAX_HEATING,
   MAX_LOGO_OFFSET_X,
   MAX_LOGO_OFFSET_Y,
   trimLogo,
   MAX_PADDING,
+  MAX_PRINT_WIDTH,
+  MIN_PRINT_WIDTH,
   type LogoAsset,
   type PrintRotation,
   type ReceiptState
 } from './receipt';
-import { encodeEscPosRaster, encodeEscPosRasterParts, encodeEscPosTextTest, MAX_FEED_BEFORE_CUT, MAX_HEATING, MAX_PRINT_WIDTH, MIN_PRINT_WIDTH, type CutMode } from './escpos';
-import { hasBluetoothSupport, requestBluetoothConnection } from './bluetooth';
-import type { PrinterConnection } from './printer';
+import {
+  canvasToBitmap,
+  concat,
+  encodeBitmap,
+  heating as heatingCommand,
+  isBluetoothSupported,
+  isSerialSupported,
+  isUsbSupported,
+  requestBluetoothPrinter,
+  requestSerialPrinter,
+  requestUsbPrinter,
+  sendParts,
+  textTestPage,
+  type CutMode,
+  type Transport
+} from 'escpos-web-print';
 import { Button as ParkButton } from './components/ui/button';
 import {
   createPersistedEditor,
@@ -28,6 +45,7 @@ import {
   readPresets,
   writePersistedEditor,
   writePresets,
+  type ConnectionType,
   type Preset
 } from './persistence';
 import { BUILT_IN_PRESETS } from './presets';
@@ -69,7 +87,8 @@ export function App() {
   const [printRotation, setPrintRotation] = useState<PrintRotation>('clockwise');
   const [chunkSize, setChunkSize] = useState(180);
   const [bluetoothName, setBluetoothName] = useState('');
-  const [printerConnection, setPrinterConnection] = useState<PrinterConnection | null>(null);
+  const [connectionType, setConnectionType] = useState<ConnectionType>('bluetooth');
+  const [printerConnection, setPrinterConnection] = useState<Transport | null>(null);
   const [printerMessage, setPrinterMessage] = useState(IDLE_PRINTER_MESSAGE);
   const [printerError, setPrinterError] = useState('');
   const [printing, setPrinting] = useState(false);
@@ -84,7 +103,7 @@ export function App() {
   const [presetError, setPresetError] = useState('');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const printAbortRef = useRef<AbortController | null>(null);
-  const bluetoothSupported = typeof navigator !== 'undefined' && hasBluetoothSupport();
+  const connectionSupported = { bluetooth: isBluetoothSupported(), usb: isUsbSupported(), serial: isSerialSupported() }[connectionType];
   const activeLogo = receipt.logoMode === 'upload' ? uploadedLogo : referenceLogo;
   const offkaiImportAvailable = import.meta.env.DEV || import.meta.env.VITE_STATIC_DEPLOY !== 'true';
 
@@ -103,6 +122,7 @@ export function App() {
       setPrintRotation(stored.settings.printRotation);
       setChunkSize(stored.settings.chunkSize);
       setBluetoothName(stored.settings.bluetoothName);
+      setConnectionType(stored.settings.connectionType);
       setIncludeAttendeeSerial(stored.settings.includeAttendeeSerial);
       if (stored.logo) {
         const image = new Image();
@@ -177,6 +197,7 @@ export function App() {
           printRotation,
           chunkSize,
           bluetoothName,
+          connectionType,
           includeAttendeeSerial
         },
         uploadedLogo
@@ -190,7 +211,7 @@ export function App() {
           : '自動保存済み'
         : '保存容量不足のため自動保存できません'
     );
-  }, [bluetoothName, chunkSize, cutMode, dither, feedBeforeCut, heating, includeAttendeeSerial, paddingAfter, paddingBefore, printWidth, rasterMargin, receipt, restored, printRotation, uploadedLogo]);
+  }, [bluetoothName, chunkSize, connectionType, cutMode, dither, feedBeforeCut, heating, includeAttendeeSerial, paddingAfter, paddingBefore, printWidth, rasterMargin, receipt, restored, printRotation, uploadedLogo]);
 
   function updateReceipt<K extends keyof ReceiptState>(key: K, value: ReceiptState[K]) {
     setReceipt((current) => ({ ...current, [key]: value }));
@@ -432,7 +453,7 @@ export function App() {
   function handleRawExport() {
     try {
       const canvas = createPrinterCanvas(receipt, activeLogo, printWidth, printRotation, rasterMargin, paddingBefore, paddingAfter);
-      const bytes = encodeEscPosRaster(canvas, { cutMode, feedBeforeCut, heating, dither });
+      const bytes = concat(encodePrint(canvas));
       downloadBlob(new Blob([bytes], { type: 'application/octet-stream' }), 'offkai-ticket.escpos.bin');
       setExportError('');
     } catch (error) {
@@ -444,18 +465,20 @@ export function App() {
     setPrinterError('');
     setPrinterMessage('プリンターを選択してください');
     try {
-      const connection = await requestBluetoothConnection(
-        () => {
-          printAbortRef.current?.abort();
-          setPrinterConnection(null);
-          setPrinterMessage(IDLE_PRINTER_MESSAGE);
-          setPrinterError('プリンターとの接続が切れました。もう一度「印刷」を押すと再接続します。');
-        },
-        bluetoothName,
-        showAll
-      );
+      const onDisconnect = () => {
+        printAbortRef.current?.abort();
+        setPrinterConnection(null);
+        setPrinterMessage(IDLE_PRINTER_MESSAGE);
+        setPrinterError('プリンターとの接続が切れました。もう一度「印刷」を押すと再接続します。');
+      };
+      const connection =
+        connectionType === 'usb'
+          ? await requestUsbPrinter({ onDisconnect })
+          : connectionType === 'serial'
+            ? await requestSerialPrinter({ onDisconnect })
+            : await requestBluetoothPrinter({ namePrefix: bluetoothName || undefined, acceptAllDevices: showAll, onDisconnect });
       setPrinterConnection(connection);
-      if (connection.deviceName) {
+      if (connectionType === 'bluetooth' && connection.deviceName) {
         setBluetoothName(connection.deviceName);
       }
       setPrinterMessage(`接続中: ${connection.label}`);
@@ -470,7 +493,7 @@ export function App() {
   }
 
   async function handlePrinterDisconnect() {
-    await printerConnection?.disconnect();
+    await printerConnection?.close();
     setPrinterConnection(null);
     setPrinterMessage(IDLE_PRINTER_MESSAGE);
   }
@@ -478,12 +501,20 @@ export function App() {
   async function handlePrint() {
     await sendToPrinter(() => {
       const canvas = createPrinterCanvas(receipt, activeLogo, printWidth, printRotation, rasterMargin, paddingBefore, paddingAfter);
-      return encodeEscPosRasterParts(canvas, { cutMode, feedBeforeCut, heating, dither });
+      return encodePrint(canvas);
     });
   }
 
   async function handleTestPrint() {
-    await sendToPrinter(() => encodeEscPosTextTest(heating));
+    await sendToPrinter(() => {
+      const [initialize, ...lines] = textTestPage();
+      return heating > 0 ? [initialize, heatingCommand(heating), ...lines] : [initialize, ...lines];
+    });
+  }
+
+  function encodePrint(canvas: Parameters<typeof canvasToBitmap>[0]) {
+    const bitmap = canvasToBitmap(canvas, dither ? { dither: 'atkinson' } : { dither: 'threshold', threshold: 200 });
+    return encodeBitmap(bitmap, { cut: cutMode, feedAfter: feedBeforeCut, heatingTime: heating });
   }
 
   async function sendToPrinter(encode: () => Uint8Array[]) {
@@ -498,7 +529,7 @@ export function App() {
     setPrinterMessage(`印刷中: ${connection.label}`);
     try {
       const parts = encode();
-      await connection.write(parts, chunkSize, controller.signal);
+      await sendParts(connection, parts, { chunkSize, signal: controller.signal });
       setPrinterMessage(`印刷しました: ${connection.label}`);
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
@@ -711,6 +742,19 @@ export function App() {
             <details className="advanced-settings">
               <summary>詳細設定</summary>
               <div className="advanced-body">
+                <label className="field-group">
+                  <span className="field-label">接続方法</span>
+                  <select
+                    className="text-input"
+                    value={connectionType}
+                    onChange={(event) => setConnectionType(event.target.value as ConnectionType)}
+                    disabled={Boolean(printerConnection)}
+                  >
+                    <option value="bluetooth">Bluetooth</option>
+                    <option value="usb">USB</option>
+                    <option value="serial">シリアル（USBシリアル / Bluetooth SPP）</option>
+                  </select>
+                </label>
                 <label className="check-row">
                   <input type="checkbox" checked={dither} onChange={(event) => setDither(event.target.checked)} />
                   <span>写真やロゴをディザリングで印刷する</span>
@@ -753,10 +797,10 @@ export function App() {
                   <input className="text-input" type="number" min={20} max={512} step={1} value={chunkSize} onChange={(event) => setChunkSize(Math.max(20, Math.min(512, Number(event.target.value) || 180)))} />
                 </label>
                 <div className="action-row">
-                  <button className="button button-secondary" type="button" onClick={handleTestPrint} disabled={printing || !printerConnection}>
+                  <button className="button button-secondary" type="button" onClick={handleTestPrint} disabled={printing || !connectionSupported}>
                     テスト印字
                   </button>
-                  <button className="button button-secondary" type="button" onClick={() => handlePrinterConnect(true)} disabled={!bluetoothSupported || Boolean(printerConnection)}>
+                  <button className="button button-secondary" type="button" onClick={() => handlePrinterConnect(true)} disabled={connectionType !== 'bluetooth' || !connectionSupported || Boolean(printerConnection)}>
                     全デバイスから接続
                   </button>
                 </div>
@@ -786,12 +830,12 @@ export function App() {
                   切断
                 </button>
               )}
-              <button className={`button ${printing ? 'button-secondary' : 'button-primary'}`} type="button" onClick={printing ? cancelPrint : handlePrint} disabled={!bluetoothSupported}>
+              <button className={`button ${printing ? 'button-secondary' : 'button-primary'}`} type="button" onClick={printing ? cancelPrint : handlePrint} disabled={!connectionSupported}>
                 {printing ? '印刷を中止' : '印刷'}
               </button>
             </div>
           </div>
-          {!bluetoothSupported && <p className="inline-error">このブラウザはBluetooth接続に対応していません。デスクトップ版Chromeで開いてください。</p>}
+          {!connectionSupported && <p className="inline-error">このブラウザは選択中の接続方法に対応していません。デスクトップ版Chromeで開いてください。</p>}
           {printerError && <p className="inline-error">{printerError}</p>}
           <div className="canvas-stage">
             <div className="canvas-frame">

@@ -1,8 +1,22 @@
-import { defaultReceipt, MAX_LOGO_OFFSET_X, MAX_LOGO_OFFSET_Y, MAX_PADDING, type LogoAsset, type PrintRotation, type ReceiptState } from './receipt';
-import { MAX_FEED_BEFORE_CUT, MAX_HEATING, MAX_PRINT_WIDTH, MIN_PRINT_WIDTH, type CutMode } from './escpos';
+import type { CutMode } from 'escpos-web-print';
+import {
+  defaultReceipt,
+  MAX_FEED_BEFORE_CUT,
+  MAX_HEATING,
+  MAX_LOGO_OFFSET_X,
+  MAX_LOGO_OFFSET_Y,
+  MAX_PADDING,
+  MAX_PRINT_WIDTH,
+  MIN_PRINT_WIDTH,
+  type LogoAsset,
+  type PrintRotation,
+  type ReceiptState
+} from './receipt';
 
 const STORAGE_KEY = 'receipt-printer:editor:v1';
 export const MAX_LOGO_DATA_URL_LENGTH = 1_500_000;
+export type ConnectionType = 'bluetooth' | 'usb' | 'serial';
+
 export const DEFAULT_PADDING_BEFORE = 48;
 export const DEFAULT_PADDING_AFTER = 96;
 export const DEFAULT_SIDE_MARGIN = 12;
@@ -22,6 +36,7 @@ export type PersistedEditor = {
     printRotation: PrintRotation;
     chunkSize: number;
     bluetoothName: string;
+    connectionType: ConnectionType;
     includeAttendeeSerial: boolean;
   };
   logo?: {
@@ -194,6 +209,7 @@ function validateSettings(value: Record<string, unknown>): PersistedEditor['sett
     printRotation,
     chunkSize,
     bluetoothName,
+    connectionType: value.connectionType === 'usb' || value.connectionType === 'serial' ? value.connectionType : 'bluetooth',
     includeAttendeeSerial: value.includeAttendeeSerial
   };
 }
