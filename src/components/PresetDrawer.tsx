@@ -2,9 +2,17 @@ import { useEffect, useState } from 'react';
 import type { Doc } from '../doc';
 import { ensureFonts } from '../fonts';
 import type { PrintedItem, ShelfItem } from '../persistence';
+import { buildApp, saveTemplates, userTemplates } from '../apps/registry';
 import { PRESETS } from '../presets';
 import { invalidateLayers, renderDoc } from '../render';
 import { appTokens, fontSpecs, layOut } from '../prepare';
+import { Modal } from './Modal';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { css, cx } from '../../styled-system/css';
+import { presetStyles as styles } from './preset.styles';
+import { panelStyles } from './panel.styles';
+import { fieldStyles } from './fields/styles';
 
 type Props = {
   open: boolean;
@@ -28,6 +36,7 @@ export function PresetDrawer({ open, shelf, printed, onClose, onPick, onRemove, 
   const [thumbs, setThumbs] = useState<Thumb[]>(() => PRESETS.map((preset) => ({ id: preset.id, name: preset.name, hint: preset.hint, doc: preset.build(), image: null })));
   const [failed, setFailed] = useState(false);
   const [query, setQuery] = useState('');
+  const [templates, setTemplates] = useState(() => userTemplates());
   const needle = query.trim().toLowerCase();
   const visible = needle ? thumbs.filter((thumb) => `${thumb.name} ${thumb.hint} ${thumb.id}`.toLowerCase().includes(needle)) : thumbs;
 
@@ -50,92 +59,102 @@ export function PresetDrawer({ open, shelf, printed, onClose, onPick, onRemove, 
   }, [open, thumbs]);
 
   useEffect(() => {
-    if (!open) {
-      return;
+    if (open) {
+      setTemplates(userTemplates());
     }
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
-  if (!open) {
-    return null;
-  }
+  }, [open]);
 
   return (
-    <div className="drawer-backdrop" onPointerDown={onClose}>
-      <div className="drawer" role="dialog" aria-modal="true" aria-labelledby="drawer-title" onPointerDown={(event) => event.stopPropagation()}>
-        <div className="drawer-head">
-          <h2 id="drawer-title">Start from a preset</h2>
-          <button type="button" onClick={onClose} autoFocus>
-            Close
-          </button>
-        </div>
-        <p className="panel-note">Previews are real 1-bit renders of what the printer burns. Picking one replaces the current paper; undo brings it back.</p>
-        {failed && <p className="field-error">Fonts did not load, so previews may use a fallback typeface.</p>}
-        <label className="field preset-search">
-          <span className="field-label">Find a preset</span>
-          <input type="search" value={query} placeholder="ticket, 日本語, game..." onChange={(event) => setQuery(event.target.value)} />
+    <Modal open={open} onClose={onClose} title="Start from a preset" wide>
+        <p className={panelStyles.note}>Previews are real 1-bit renders of what the printer burns. Picking one replaces the current paper; undo brings it back.</p>
+        {failed && <p className={fieldStyles.error}>Fonts did not load, so previews may use a fallback typeface.</p>}
+        <label className={styles.search}>
+          <span className={fieldStyles.label}>Find a preset</span>
+          <Input type="search" value={query} placeholder="ticket, 日本語, game..." onChange={(event) => setQuery(event.target.value)} />
         </label>
-        {visible.length === 0 && <p className="panel-note">No preset matches “{query}”. Try a shorter word.</p>}
-        <ul className="preset-grid">
+        {visible.length === 0 && <p className={panelStyles.note}>No preset matches “{query}”. Try a shorter word.</p>}
+        <ul className={styles.grid}>
           {visible.map((thumb) => (
             <li key={thumb.id}>
-              <button type="button" className="preset" onClick={() => onPick(PRESETS.find((preset) => preset.id === thumb.id)!.build())}>
-                <span className="preset-paper">{thumb.image ? <img src={thumb.image} alt="" /> : <span className="preset-loading">Rendering</span>}</span>
-                <span className="preset-name">{thumb.name}</span>
-                <span className="preset-hint">{thumb.hint}</span>
-              </button>
+              <Button type="button" className={styles.preset} onClick={() => onPick(PRESETS.find((preset) => preset.id === thumb.id)!.build())}>
+                <span className={styles.paper}>{thumb.image ? <img src={thumb.image} alt="" /> : <span className={styles.loading}>Rendering</span>}</span>
+                <span className={styles.name}>{thumb.name}</span>
+                <span className={styles.hint}>{thumb.hint}</span>
+              </Button>
             </li>
           ))}
         </ul>
-        <h2 className="drawer-sub">Printed</h2>
-        {printed.length === 0 ? (
-          <p className="panel-note">Every print saves itself here automatically, newest first, up to 40.</p>
+        <h2 className={styles.sub}>My templates</h2>
+        {templates.length === 0 ? (
+          <p className={panelStyles.note}>Add fields to a design, then use Save as template in the Fields panel. Each new copy starts with the per-guest fields empty.</p>
         ) : (
-          <ul className="printed-grid">
+          <ul className={styles.shelf}>
+            {templates.map((template) => (
+              <li key={template.id}>
+                <Button type="button" onClick={() => onPick(buildApp(template))}>
+                  {template.name}
+                  <span className={styles.hint}>
+                    {template.fields.length} fields, new copy
+                  </span>
+                </Button>
+                <Button
+                  type="button"
+                  className={panelStyles.danger}
+                  aria-label={`Delete template ${template.name}`}
+                  onClick={() => {
+                    const next = templates.filter((item) => item.id !== template.id);
+                    saveTemplates(next);
+                    setTemplates(next);
+                  }}
+                >
+                  Delete
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <h2 className={styles.sub}>Sent to printer</h2>
+        {printed.length === 0 ? (
+          <p className={panelStyles.note}>Every design you send to the printer is kept here automatically, newest first, up to 40.</p>
+        ) : (
+          <ul className={styles.printed}>
             {printed.map((item) => (
               <li key={item.id}>
-                <button type="button" className="preset" onClick={() => onPick(item.doc)}>
-                  <span className="preset-paper is-printed">
+                <Button type="button" className={styles.preset} onClick={() => onPick(item.doc)}>
+                  <span className={cx(styles.paper, css({ height: '150px' }))}>
                     <img src={item.thumb} alt="" />
                   </span>
-                  <span className="preset-name">{item.doc.name || 'Untitled'}</span>
-                  <span className="preset-hint">
+                  <span className={styles.name}>{item.doc.name || 'Untitled'}</span>
+                  <span className={styles.hint}>
                     {new Date(item.printedAt).toLocaleString()}
                     {item.copies > 1 ? `, ${item.copies} copies` : ''}
                   </span>
-                </button>
-                <button type="button" className="link-button danger" onClick={() => onRemovePrinted(item.id)} aria-label={`Remove ${item.doc.name} from printed`}>
+                </Button>
+                <Button type="button" className={styles.remove} onClick={() => onRemovePrinted(item.id)} aria-label={`Remove ${item.doc.name} from printed`}>
                   Remove
-                </button>
+                </Button>
               </li>
             ))}
           </ul>
         )}
-        <h2 className="drawer-sub">My designs</h2>
+        <h2 className={styles.sub}>My designs</h2>
         {shelf.length === 0 ? (
-          <p className="panel-note">Nothing saved yet. Use “Save to my designs” in the print panel to keep a design in this browser.</p>
+          <p className={panelStyles.note}>Nothing saved yet. Use “Save to my designs” in the print panel to keep a design in this browser.</p>
         ) : (
-          <ul className="shelf">
+          <ul className={styles.shelf}>
             {shelf.map((item) => (
               <li key={item.id}>
-                <button type="button" onClick={() => onPick(item.doc)}>
+                <Button type="button" onClick={() => onPick(item.doc)}>
                   {item.doc.name || 'Untitled'}
-                  <span className="preset-hint">{new Date(item.savedAt).toLocaleString()}</span>
-                </button>
-                <button type="button" className="danger" onClick={() => onRemove(item.id)} aria-label={`Remove ${item.doc.name}`}>
+                  <span className={styles.hint}>{new Date(item.savedAt).toLocaleString()}</span>
+                </Button>
+                <Button type="button" className={css({ color: 'danger' })} onClick={() => onRemove(item.id)} aria-label={`Remove ${item.doc.name}`}>
                   Remove
-                </button>
+                </Button>
               </li>
             ))}
           </ul>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }

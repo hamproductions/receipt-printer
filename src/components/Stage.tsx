@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from 'react';
+import { useEffect, useEffectEvent, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent } from 'react';
 import { DOTS_PER_MM, type Element, type ImageElement, type TextElement } from '../doc';
 import { cropOverflow } from '../render';
+import { stageStyles } from './stage.styles';
 
 export type Patch = Partial<Element>;
 export type PatchSet = { id: string; patch: Patch }[];
@@ -26,6 +27,10 @@ type Props = {
   croppingId: string | null;
   onCrop: (id: string | null) => void;
   magnet: Magnet;
+  issueIds: string[];
+  hoverFromList: string[] | null;
+  emptyFields: { id: string; label: string }[];
+  cutIds: string[];
   rulerGuides: { x: number[]; y: number[] };
   onGuides: (guides: { x: number[]; y: number[] }) => void;
   onCursor: (point: { x: number; y: number } | null) => void;
@@ -41,12 +46,14 @@ type Box = { x: number; y: number; w: number; h: number };
 type Guide = { axis: 'x' | 'y'; at: number };
 
 type Gesture =
-  | { mode: 'move'; start: Point; origins: Element[]; group: string; moved: boolean }
+  | { mode: 'move'; start: Point; origins: Element[]; group: string; moved: boolean; drill: string | null }
   | { mode: 'rotate'; start: Point; origin: Element; group: string }
   | { mode: Handle; start: Point; origin: Element; group: string }
   | { mode: 'marquee'; start: Point; additive: boolean; base: string[] }
   | { mode: 'crop'; start: Point; origin: ImageElement; group: string }
   | { mode: 'guide'; axis: 'x' | 'y'; index: number | null; start: Point };
+
+type GestureView = { mode: 'guide'; axis: 'x' | 'y'; index: number | null } | { mode: 'other' };
 
 const HANDLES: Handle[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 const SNAP_PX = 7;
@@ -88,6 +95,7 @@ function onFrameEdge(element: Element, point: Point, tolerance: number) {
 export function hitsAt(elements: Element[], point: Point, tolerance: number, spans: Spans = {}) {
   const area = (element: Element) => (spans[element.id]?.width ?? element.w) * element.h;
   return elements
+    .filter((element) => !element.locked)
     .filter((element) => contains(element, point, tolerance, spans[element.id]) && (!isFrame(element) || onFrameEdge(element, point, tolerance)))
     .sort((a, b) => area(a) - area(b) || elements.indexOf(b) - elements.indexOf(a));
 }
@@ -134,7 +142,9 @@ function Ruler({ axis, length, zoom, onGrab }: { axis: 'x' | 'y'; length: number
   }
   return (
     <svg
-      className={`ruler ruler-${axis}`}
+      className={stageStyles.ruler}
+      data-part="ruler"
+      data-axis={axis}
       width={axis === 'x' ? size : 22}
       height={axis === 'x' ? 22 : size}
       onPointerDown={onGrab}
@@ -151,19 +161,25 @@ export function Stage(props: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const paperRef = useRef<HTMLDivElement>(null);
   const gesture = useRef<Gesture | null>(null);
+  const [gestureView, setGestureView] = useState<GestureView | null>(null);
   const [guides, setGuides] = useState<Guide[]>([]);
   const [marquee, setMarquee] = useState<Box | null>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [dropping, setDropping] = useState(false);
   const [draftGuide, setDraftGuide] = useState<{ axis: 'x' | 'y'; at: number } | null>(null);
 
+  function startGesture(next: Gesture) {
+    gesture.current = next;
+    setGestureView(next.mode === 'guide' ? { mode: 'guide', axis: next.axis, index: next.index } : { mode: 'other' });
+  }
+
   function beginGuide(event: PointerEvent, axis: 'x' | 'y', index: number | null) {
     if (event.button !== 0) {
       return;
     }
     event.stopPropagation();
-    paperRef.current?.setPointerCapture(event.pointerId);
-    gesture.current = { mode: 'guide', axis, index, start: toDoc(event.clientX, event.clientY) };
+    capture(event);
+    startGesture({ mode: 'guide', axis, index, start: toDoc(event.clientX, event.clientY) });
     setDraftGuide(index === null ? null : { axis, at: props.rulerGuides[axis][index] });
   }
   const selected = elements.filter((element) => selectedIds.includes(element.id));
@@ -199,7 +215,9 @@ export function Stage(props: Props) {
   }
 
   function capture(event: PointerEvent) {
-    paperRef.current?.setPointerCapture(event.pointerId);
+    if (event.isTrusted && event.buttons !== 0) {
+      paperRef.current?.setPointerCapture(event.pointerId);
+    }
   }
 
   function onPaperDown(event: PointerEvent) {
@@ -214,7 +232,7 @@ export function Stage(props: Props) {
     if (cropping?.kind === 'image') {
       capture(event);
       if (hitsAt([cropping], point, tolerance).length) {
-        gesture.current = { mode: 'crop', start: point, origin: cropping, group: `crop-${event.timeStamp}` };
+        startGesture({ mode: 'crop', start: point, origin: cropping, group: `crop-${event.timeStamp}` });
         return;
       }
       props.onCrop(null);
@@ -223,21 +241,28 @@ export function Stage(props: Props) {
     capture(event);
     if (!target) {
       const additive = event.shiftKey || event.metaKey || event.ctrlKey;
-      gesture.current = { mode: 'marquee', start: point, additive, base: additive ? selectedIds : [] };
+      startGesture({ mode: 'marquee', start: point, additive, base: additive ? selectedIds : [] });
       if (!additive) {
         props.onSelect([]);
       }
       return;
     }
+    const members = target.group ? elements.filter((element) => element.group === target.group).map((element) => element.id) : [target.id];
+    const wholeGroupSelected = members.length > 1 && members.every((id) => selectedIds.includes(id)) && selectedIds.length === members.length;
     let ids = selectedIds;
+    let drill: string | null = null;
     if (event.shiftKey || event.metaKey || event.ctrlKey) {
-      ids = selectedIds.includes(target.id) ? selectedIds.filter((id) => id !== target.id) : [...selectedIds, target.id];
-    } else if (!selectedIds.includes(target.id) || event.altKey) {
+      ids = members.every((id) => selectedIds.includes(id)) ? selectedIds.filter((id) => !members.includes(id)) : [...new Set([...selectedIds, ...members])];
+    } else if (event.altKey) {
       ids = [target.id];
+    } else if (wholeGroupSelected) {
+      drill = target.id;
+    } else if (!selectedIds.includes(target.id)) {
+      ids = members;
     }
     props.onSelect(ids);
     const origins = elements.filter((element) => ids.includes(element.id));
-    gesture.current = { mode: 'move', start: point, origins, group: `move-${event.timeStamp}`, moved: false };
+    startGesture({ mode: 'move', start: point, origins, group: `move-${event.timeStamp}`, moved: false, drill });
   }
 
   function beginHandle(event: PointerEvent, element: Element, mode: Handle | 'rotate') {
@@ -246,7 +271,7 @@ export function Stage(props: Props) {
     }
     event.stopPropagation();
     capture(event);
-    gesture.current = { mode, start: toDoc(event.clientX, event.clientY), origin: element, group: `${mode}-${event.timeStamp}` } as Gesture;
+    startGesture({ mode, start: toDoc(event.clientX, event.clientY), origin: element, group: `${mode}-${event.timeStamp}` });
   }
 
   function targets(ignore: string[]) {
@@ -429,10 +454,15 @@ export function Stage(props: Props) {
       props.onGuides({ ...props.rulerGuides, [active.axis]: inside ? [...list, at] : list });
       setDraftGuide(null);
       gesture.current = null;
+      setGestureView(null);
       return;
+    }
+    if (active?.mode === 'move' && !active.moved && active.drill) {
+      props.onSelect([active.drill]);
     }
     if (gesture.current) {
       gesture.current = null;
+      setGestureView(null);
       setGuides([]);
       setMarquee(null);
       props.onGestureEnd();
@@ -452,26 +482,22 @@ export function Stage(props: Props) {
     }
   }
 
-  const cropTarget = elements.find((element) => element.id === props.croppingId);
-  const croppingRef = useRef(cropTarget);
-  croppingRef.current = cropTarget;
-  const onChangeRef = useRef(props.onChange);
-  onChangeRef.current = props.onChange;
+  const onCropWheel = useEffectEvent((event: WheelEvent) => {
+    const target = elements.find((element) => element.id === props.croppingId);
+    if (target?.kind !== 'image') {
+      return;
+    }
+    event.preventDefault();
+    const zoomValue = Math.max(1, Math.min(5, (target.cropZoom ?? 1) * Math.exp(-event.deltaY * 0.0015)));
+    props.onChange([{ id: target.id, patch: { cropZoom: Math.round(zoomValue * 100) / 100 } as Patch }], `crop-zoom-${target.id}`);
+  });
 
   useEffect(() => {
     const paper = paperRef.current;
     if (!paper || !props.croppingId) {
       return;
     }
-    const onWheel = (event: WheelEvent) => {
-      const target = croppingRef.current;
-      if (target?.kind !== 'image') {
-        return;
-      }
-      event.preventDefault();
-      const zoomValue = Math.max(1, Math.min(5, (target.cropZoom ?? 1) * Math.exp(-event.deltaY * 0.0015)));
-      onChangeRef.current([{ id: target.id, patch: { cropZoom: Math.round(zoomValue * 100) / 100 } as Patch }], `crop-zoom-${target.id}`);
-    };
+    const onWheel = (event: WheelEvent) => onCropWheel(event);
     paper.addEventListener('wheel', onWheel, { passive: false });
     return () => paper.removeEventListener('wheel', onWheel);
   }, [props.croppingId]);
@@ -503,11 +529,15 @@ export function Stage(props: Props) {
   });
 
   return (
-    <div className="stage-paper-wrap" style={{ width: width * zoom }}>
-      <div className="slot" aria-hidden="true" />
+    <div className={stageStyles.wrap} data-part="stage" style={{ width: width * zoom }}>
+      <div className={stageStyles.slot} aria-hidden="true" />
       <div
         ref={paperRef}
-        className={`paper${dropping ? ' is-dropping' : ''}${feeding !== null ? ' is-feeding' : ''}${hoverId ? ' is-hovering' : ''}`}
+        className={stageStyles.paper}
+        data-part="paper"
+        data-dropping={dropping || undefined}
+        data-feeding={feeding !== null || undefined}
+        data-hovering={!!hoverId || undefined}
         style={{ width: width * zoom, height: height * zoom, clipPath: `inset(0 0 ${(1 - reveal) * 100}% 0)` }}
         onPointerDown={onPaperDown}
         onPointerMove={onPaperMove}
@@ -525,39 +555,55 @@ export function Stage(props: Props) {
         onDragLeave={() => setDropping(false)}
         onDrop={onDrop}
       >
-        <canvas ref={canvasRef} className="paper-canvas" style={{ width: width * zoom, height: height * zoom }} aria-label="Print preview" />
+        <canvas ref={canvasRef} className={stageStyles.canvas} data-part="paper-canvas" style={{ width: width * zoom, height: height * zoom }} aria-label="Print preview" />
         {elements.map((element) =>
           element.kind === 'image' && !element.src ? (
-            <div key={element.id} className="placeholder" style={frame(element)}>
+            <div key={element.id} className={stageStyles.placeholder} style={frame(element)}>
               <span>Drop a photo here, or double-click to choose</span>
             </div>
           ) : null
         )}
-        {hoverId && !selectedIds.includes(hoverId) && !gesture.current && (() => {
-          const hover = elements.find((element) => element.id === hoverId);
-          return hover ? <div className="hover-box" style={frame(hover)} /> : null;
-        })()}
+        {!gestureView &&
+          (props.hoverFromList ?? (hoverId ? [hoverId] : []))
+            .filter((id) => !selectedIds.includes(id))
+            .map((id) => elements.find((element) => element.id === id))
+            .map((hover) => (hover ? <div key={`hover-${hover.id}`} className={stageStyles.hover} style={frame(hover)} /> : null))}
         {selected.map((element) => (
-          <div key={element.id} className={`select-box${single ? ' is-single' : ''}${element.id === props.croppingId ? ' is-cropping' : ''}`} style={frame(element)} data-element-id={element.id}>
-            {element.id === props.croppingId && <span className="crop-hint">Drag to reposition, scroll to zoom. Enter or Esc when done.</span>}
+          <div key={element.id} className={stageStyles.selection} data-part="selection" data-single={!!single || undefined} data-cropping={element.id === props.croppingId || undefined} style={frame(element)} data-element-id={element.id}>
+            {element.id === props.croppingId && <span className={stageStyles.cropHint}>Drag to reposition, scroll to zoom. Enter or Esc when done.</span>}
             {single && !editing && element.id !== props.croppingId && (
               <>
                 {HANDLES.map((handle) => (
-                  <span key={handle} className={`handle handle-${handle}`} onPointerDown={(event) => beginHandle(event, element, handle)} />
+                  <span key={handle} className={stageStyles.handle} data-handle={handle} onPointerDown={(event) => beginHandle(event, element, handle)} />
                 ))}
-                <span className="handle-rotate" title="Rotate (Shift snaps to 15°)" onPointerDown={(event) => beginHandle(event, element, 'rotate')} />
-                <span className="size-tag">
+                <span className={stageStyles.rotate} title="Rotate (Shift snaps to 15°)" onPointerDown={(event) => beginHandle(event, element, 'rotate')} />
+                <span className={stageStyles.sizeTag}>
                   {Math.round(element.w)} × {Math.round(element.h)}
                 </span>
               </>
             )}
           </div>
         ))}
-        {group && <div className="group-box" style={frame(group)} />}
-        {marquee && <div className="marquee" style={frame(marquee)} />}
+        {props.emptyFields.map((item) => {
+          const element = elements.find((candidate) => candidate.id === item.id);
+          return element ? (
+            <div key={`empty-${item.id}`} className={stageStyles.emptyField} style={frame(element)}>
+              <span>{item.label}</span>
+            </div>
+          ) : null;
+        })}
+        {group && <div className={stageStyles.group} style={frame(group)} />}
+        {elements
+          .filter((element) => props.issueIds.includes(element.id))
+          .map((element) => (
+            <div key={`issue-${element.id}`} className={stageStyles.issue} style={frame(element)}>
+              {props.cutIds.includes(element.id) && <span className={stageStyles.cutTag}>Cut off in print</span>}
+            </div>
+          ))}
+        {marquee && <div className={stageStyles.marquee} style={frame(marquee)} />}
         {editing && editing.kind === 'text' && (
           <textarea
-            className="inline-edit"
+            className={stageStyles.inlineEdit}
             autoFocus
             onFocus={(event) => event.target.select()}
             value={editing.text}
@@ -587,10 +633,12 @@ export function Stage(props: Props) {
         )}
         {(['x', 'y'] as const).map((axis) =>
           props.rulerGuides[axis].map((at, index) =>
-            draftGuide && gesture.current?.mode === 'guide' && gesture.current.axis === axis && gesture.current.index === index ? null : (
+            draftGuide && gestureView?.mode === 'guide' && gestureView.axis === axis && gestureView.index === index ? null : (
               <span
                 key={`${axis}-${index}`}
-                className={`ruler-guide ruler-guide-${axis}`}
+                className={stageStyles.rulerGuide}
+                data-part="ruler-guide"
+                data-axis={axis}
                 style={axis === 'x' ? { left: at * zoom } : { top: at * zoom }}
                 title="Drag to move, drag off the paper to remove"
                 onPointerDown={(event) => beginGuide(event, axis, index)}
@@ -598,9 +646,9 @@ export function Stage(props: Props) {
             )
           )
         )}
-        {draftGuide && <span className={`ruler-guide ruler-guide-${draftGuide.axis} is-draft`} style={draftGuide.axis === 'x' ? { left: draftGuide.at * zoom } : { top: draftGuide.at * zoom }} />}
+        {draftGuide && <span className={stageStyles.rulerGuide} data-part="ruler-guide" data-axis={draftGuide.axis} data-draft style={draftGuide.axis === 'x' ? { left: draftGuide.at * zoom } : { top: draftGuide.at * zoom }} />}
         {guides.map((guide, index) => (
-          <span key={index} className={`guide guide-${guide.axis}`} style={guide.axis === 'x' ? { left: guide.at * zoom } : { top: guide.at * zoom }} />
+          <span key={index} className={stageStyles.guide} data-axis={guide.axis} style={guide.axis === 'x' ? { left: guide.at * zoom } : { top: guide.at * zoom }} />
         ))}
       </div>
       <Ruler axis="x" length={width} zoom={zoom} onGrab={(event) => beginGuide(event, 'y', null)} />

@@ -54,7 +54,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 0
+        "y": 0,
+        "group": "coupon-1"
       },
       {
         "kind": "text",
@@ -71,7 +72,8 @@
         "lineHeight": 1.1,
         "letterSpacing": 0,
         "y": 26,
-        "text": "{{title}}"
+        "text": "{{title}}",
+        "group": "coupon-1"
       },
       {
         "kind": "text",
@@ -88,7 +90,8 @@
         "lineHeight": 1,
         "letterSpacing": 0,
         "y": 110,
-        "text": "{{offer}}"
+        "text": "{{offer}}",
+        "group": "coupon-2"
       },
       {
         "kind": "text",
@@ -105,7 +108,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 214,
-        "text": "{{item}}"
+        "text": "{{item}}",
+        "group": "coupon-3"
       },
       {
         "kind": "shape",
@@ -118,7 +122,8 @@
         "fill": "stripes",
         "stroke": 0,
         "radius": 0,
-        "y": 268
+        "y": 268,
+        "group": "coupon-3"
       },
       {
         "kind": "text",
@@ -135,7 +140,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 274,
-        "text": "{{expiry}}"
+        "text": "{{expiry}}",
+        "group": "coupon-3"
       },
       {
         "kind": "text",
@@ -152,7 +158,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 340,
-        "text": "{{terms}}"
+        "text": "{{terms}}",
+        "group": "coupon-3"
       },
       {
         "kind": "text",
@@ -169,7 +176,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 376,
-        "text": "✂"
+        "text": "✂",
+        "group": "coupon-3"
       },
       {
         "kind": "shape",
@@ -182,13 +190,25 @@
         "fill": "solid",
         "stroke": 2,
         "radius": 0,
-        "y": 388
+        "y": 388,
+        "group": "coupon-3"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "coupon-1": {
+        "name": "COUPON"
+      },
+      "coupon-2": {
+        "name": "FREE"
+      },
+      "coupon-3": {
+        "name": "hug / coffee / dish duty"
+      }
     }
   }
 }

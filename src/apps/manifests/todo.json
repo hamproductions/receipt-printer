@@ -68,7 +68,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 20,
-        "text": "{{title}}"
+        "text": "{{title}}",
+        "group": "todo-1"
       },
       {
         "kind": "text",
@@ -85,7 +86,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 34,
-        "text": "{{date}}"
+        "text": "{{date}}",
+        "group": "todo-1"
       },
       {
         "kind": "shape",
@@ -98,7 +100,8 @@
         "fill": "solid",
         "stroke": 4,
         "radius": 0,
-        "y": 82
+        "y": 82,
+        "group": "todo-1"
       },
       {
         "kind": "shape",
@@ -112,7 +115,8 @@
         "stroke": 3,
         "radius": 4,
         "y": 108,
-        "when": "task1"
+        "when": "task1",
+        "group": "todo-2"
       },
       {
         "kind": "text",
@@ -130,7 +134,8 @@
         "letterSpacing": 0,
         "y": 110,
         "text": "{{task1}}",
-        "when": "task1"
+        "when": "task1",
+        "group": "todo-2"
       },
       {
         "kind": "shape",
@@ -144,7 +149,8 @@
         "stroke": 3,
         "radius": 4,
         "y": 164,
-        "when": "task2"
+        "when": "task2",
+        "group": "todo-2"
       },
       {
         "kind": "text",
@@ -162,7 +168,8 @@
         "letterSpacing": 0,
         "y": 166,
         "text": "{{task2}}",
-        "when": "task2"
+        "when": "task2",
+        "group": "todo-2"
       },
       {
         "kind": "shape",
@@ -176,7 +183,8 @@
         "stroke": 3,
         "radius": 4,
         "y": 220,
-        "when": "task3"
+        "when": "task3",
+        "group": "todo-2"
       },
       {
         "kind": "text",
@@ -194,7 +202,8 @@
         "letterSpacing": 0,
         "y": 222,
         "text": "{{task3}}",
-        "when": "task3"
+        "when": "task3",
+        "group": "todo-2"
       },
       {
         "kind": "shape",
@@ -208,7 +217,8 @@
         "stroke": 3,
         "radius": 4,
         "y": 276,
-        "when": "task4"
+        "when": "task4",
+        "group": "todo-2"
       },
       {
         "kind": "text",
@@ -226,13 +236,22 @@
         "letterSpacing": 0,
         "y": 278,
         "text": "{{task4}}",
-        "when": "task4"
+        "when": "task4",
+        "group": "todo-2"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "todo-1": {
+        "name": "TO DO"
+      },
+      "todo-2": {
+        "name": "First thing"
+      }
     }
   }
 }

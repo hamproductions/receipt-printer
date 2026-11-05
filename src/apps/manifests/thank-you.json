@@ -54,7 +54,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 0
+        "y": 0,
+        "group": "thank-you-1"
       },
       {
         "kind": "text",
@@ -71,7 +72,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 28,
-        "text": "To {{to}},"
+        "text": "To {{to}},",
+        "group": "thank-you-1"
       },
       {
         "kind": "text",
@@ -88,7 +90,8 @@
         "lineHeight": 1.1,
         "letterSpacing": 0,
         "y": 80,
-        "text": "{{heading}}"
+        "text": "{{heading}}",
+        "group": "thank-you-1"
       },
       {
         "kind": "shape",
@@ -101,7 +104,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 146
+        "y": 146,
+        "group": "thank-you-1"
       },
       {
         "kind": "text",
@@ -118,7 +122,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 170,
-        "text": "{{message}}"
+        "text": "{{message}}",
+        "group": "thank-you-1"
       },
       {
         "kind": "text",
@@ -135,7 +140,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 298,
-        "text": "{{signoff}}"
+        "text": "{{signoff}}",
+        "group": "thank-you-1"
       },
       {
         "kind": "text",
@@ -152,7 +158,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 338,
-        "text": "{{from}}"
+        "text": "{{from}}",
+        "group": "thank-you-1"
       },
       {
         "kind": "text",
@@ -169,7 +176,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 392,
-        "text": "{date}"
+        "text": "{date}",
+        "group": "thank-you-1"
       },
       {
         "kind": "shape",
@@ -182,13 +190,19 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 430
+        "y": 430,
+        "group": "thank-you-1"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "thank-you-1": {
+        "name": "To Sam,"
+      }
     }
   }
 }

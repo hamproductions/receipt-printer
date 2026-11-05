@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc"],
+  "ignorePatterns": ["styled-system/**", "dist/**"],
+  "jsPlugins": ["@pandacss/eslint-plugin/oxlint"],
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "@pandacss/no-invalid-token-paths": "error",
+    "@pandacss/no-invalid-nesting": "error",
+    "@pandacss/file-not-included": "error",
+    "@pandacss/no-deprecated": "warn",
+    "@pandacss/prefer-token": ["warn", { "categories": ["colors"] }],
+    "@pandacss/no-debug": "warn",
+    "@pandacss/extraction-diagnostics": "warn",
+    "@pandacss/no-important": "error"
+  }
+}

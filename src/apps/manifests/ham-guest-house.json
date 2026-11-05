@@ -1,0 +1,415 @@
+{
+  "id": "ham-guest-house",
+  "version": 1,
+  "name": "Ham’s Guest House",
+  "hint": "Welcome and stay guide with Wi-Fi QR, keys, house notes and a checkout list",
+  "fields": [
+    {
+      "key": "house_name",
+      "label": "House name",
+      "type": "longtext",
+      "default": "HAM’S\nPLACE"
+    },
+    {
+      "key": "guest_name",
+      "label": "Guest name",
+      "type": "text",
+      "default": "",
+      "required": true,
+      "perGuest": true,
+      "blankLength": 18
+    },
+    {
+      "key": "arrival_date",
+      "label": "Arrival date",
+      "type": "date",
+      "default": "",
+      "required": true,
+      "perGuest": true,
+      "blankLength": 10
+    },
+    {
+      "key": "departure_date",
+      "label": "Departure date",
+      "type": "date",
+      "default": "",
+      "required": true,
+      "perGuest": true,
+      "blankLength": 10
+    },
+    {
+      "key": "welcome_message",
+      "label": "Welcome lines",
+      "type": "longtext",
+      "default": "Your little Tokyo home.\nMake yourself comfortable. — Ham"
+    },
+    {
+      "key": "wifi_name",
+      "label": "Wi-Fi network",
+      "type": "text",
+      "default": "",
+      "required": true,
+      "hint": "Shown in the text and encoded in the QR. Save as template to keep it in this browser only."
+    },
+    {
+      "key": "wifi_password",
+      "label": "Wi-Fi password",
+      "type": "password",
+      "default": "",
+      "required": true
+    },
+    {
+      "key": "door_pin",
+      "label": "Backup PIN",
+      "type": "password",
+      "default": "",
+      "required": true
+    },
+    {
+      "key": "key_notes",
+      "label": "Key notes",
+      "type": "longtext",
+      "default": "Take the physical key as backup.\nPull the door fully closed."
+    },
+    {
+      "key": "house_rules",
+      "label": "Good neighbour mode",
+      "type": "longtext",
+      "default": "After 10 pm: low voices, light feet.\nDarts are a daytime activity.\n\nClose the shoe cabinet gently.\nThe internet fibre lives inside!\n\nKettle OR microwave, not both.\nBreaker: above the shoe cabinet."
+    },
+    {
+      "key": "settle_in",
+      "label": "Settle in",
+      "type": "longtext",
+      "default": "MICROWAVE\nレンジ → choose time → Start\nCheck wattage on the display.\n\nBATH & HOT WATER\nPress Start to enable hot water.\nAsk Ham before filling the bath.\nDrain closed → ふろ自動 to fill\n追い焚き → reheat bath water\nPut the bath cover back after use.\n\nWasher outside; hangers on top.\nEnjoy the books. Handle gently.\nPlease close the toilet lid."
+    },
+    {
+      "key": "out_and_about",
+      "label": "Out and about",
+      "type": "longtext",
+      "default": "ON FOOT, APPROXIMATELY\nIkejiri-Ohashi station     8 min\nNaka-meguro station     15 min\nShibuya                      20 min\n\nBINS: Mon recycling; Tue/Fri burnable.\nUse the separate sorting guide.\nPaper: check collection-point sign."
+    },
+    {
+      "key": "goodbye",
+      "label": "Before you head out",
+      "type": "longtext",
+      "default": "Key? Stove? Lights? Aircon?\nDoor fully closed? You’re good.\n\nNeed anything? Just ask Ham.\nEnjoy your Tokyo stay!"
+    }
+  ],
+  "doc": {
+    "version": 1,
+    "name": "Ham’s Guest House — Welcome & stay guide",
+    "landscape": false,
+    "length": 600,
+    "autoLength": true,
+    "endSpace": 96,
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128
+    },
+    "elements": [
+      {
+        "x": 16,
+        "y": 20,
+        "rotation": 0,
+        "invert": false,
+        "kind": "text",
+        "w": 352,
+        "h": 40,
+        "text": "{{house_name}}",
+        "font": "Archivo Black",
+        "size": 48,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "group": "hgh-header",
+        "role": "heading"
+      },
+      {
+        "x": 16,
+        "y": 155,
+        "rotation": 0,
+        "invert": false,
+        "kind": "text",
+        "w": 352,
+        "h": 40,
+        "text": "WELCOME, {{guest_name}}\nSTAY: {{arrival_date}} to {{departure_date}}\n{{welcome_message}}",
+        "font": "Noto Sans JP",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "group": "hgh-header",
+        "role": "body"
+      },
+      {
+        "x": 16,
+        "y": 292,
+        "rotation": 0,
+        "invert": true,
+        "kind": "text",
+        "w": 352,
+        "h": 40,
+        "text": "01   DROP YOUR BAGS. CONNECT.",
+        "font": "Noto Sans JP",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "group": "hgh-connect",
+        "role": "heading"
+      },
+      {
+        "x": 16,
+        "y": 330,
+        "rotation": 0,
+        "invert": false,
+        "kind": "text",
+        "w": 352,
+        "h": 40,
+        "text": "Wi-Fi: {{wifi_name}}\nPassword: {{wifi_password}}",
+        "font": "Noto Sans JP",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "group": "hgh-connect",
+        "role": "body"
+      },
+      {
+        "x": 80,
+        "y": 410,
+        "rotation": 0,
+        "invert": false,
+        "kind": "qr",
+        "w": 224,
+        "h": 224,
+        "data": "WIFI:T:WPA;S:{{wifi:wifi_name}};P:{{wifi:wifi_password}};;",
+        "ecc": "M",
+        "group": "hgh-connect"
+      },
+      {
+        "x": 16,
+        "y": 670,
+        "rotation": 0,
+        "invert": true,
+        "kind": "text",
+        "w": 352,
+        "h": 40,
+        "text": "02   YOUR KEYS TO THE PLACE",
+        "font": "Noto Sans JP",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "group": "hgh-keys",
+        "role": "heading"
+      },
+      {
+        "x": 16,
+        "y": 715,
+        "rotation": 0,
+        "invert": false,
+        "kind": "text",
+        "w": 352,
+        "h": 40,
+        "text": "Key card → unlock the room\nBackup PIN → {{door_pin}}\n{{key_notes}}",
+        "font": "Noto Sans JP",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "group": "hgh-keys",
+        "role": "body"
+      },
+      {
+        "x": 16,
+        "y": 850,
+        "rotation": 0,
+        "invert": true,
+        "kind": "text",
+        "w": 352,
+        "h": 40,
+        "text": "03   GOOD NEIGHBOUR MODE",
+        "font": "Noto Sans JP",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "group": "hgh-neighbour",
+        "role": "heading"
+      },
+      {
+        "x": 16,
+        "y": 895,
+        "rotation": 0,
+        "invert": false,
+        "kind": "text",
+        "w": 352,
+        "h": 40,
+        "text": "{{house_rules}}",
+        "font": "Noto Sans JP",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "group": "hgh-neighbour",
+        "role": "body"
+      },
+      {
+        "x": 16,
+        "y": 1140,
+        "rotation": 0,
+        "invert": true,
+        "kind": "text",
+        "w": 352,
+        "h": 40,
+        "text": "04   SETTLE IN",
+        "font": "Noto Sans JP",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "group": "hgh-settle",
+        "role": "heading"
+      },
+      {
+        "x": 16,
+        "y": 1185,
+        "rotation": 0,
+        "invert": false,
+        "kind": "text",
+        "w": 352,
+        "h": 40,
+        "text": "{{settle_in}}",
+        "font": "Noto Sans JP",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "group": "hgh-settle",
+        "role": "body"
+      },
+      {
+        "x": 16,
+        "y": 1590,
+        "rotation": 0,
+        "invert": true,
+        "kind": "text",
+        "w": 352,
+        "h": 40,
+        "text": "05   OUT & ABOUT",
+        "font": "Noto Sans JP",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "group": "hgh-out",
+        "role": "heading"
+      },
+      {
+        "x": 16,
+        "y": 1635,
+        "rotation": 0,
+        "invert": false,
+        "kind": "text",
+        "w": 352,
+        "h": 40,
+        "text": "{{out_and_about}}",
+        "font": "Noto Sans JP",
+        "size": 21,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "group": "hgh-out",
+        "role": "body"
+      },
+      {
+        "x": 16,
+        "y": 1870,
+        "rotation": 0,
+        "invert": true,
+        "kind": "text",
+        "w": 352,
+        "h": 40,
+        "text": "BEFORE YOU HEAD OUT",
+        "font": "Noto Sans JP",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "group": "hgh-before",
+        "role": "heading"
+      },
+      {
+        "x": 16,
+        "y": 1915,
+        "rotation": 0,
+        "invert": false,
+        "kind": "text",
+        "w": 352,
+        "h": 40,
+        "text": "{{goodbye}}",
+        "font": "Noto Sans JP",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "group": "hgh-before",
+        "role": "body"
+      }
+    ],
+    "sections": {
+      "hgh-header": {
+        "name": "Welcome"
+      },
+      "hgh-connect": {
+        "name": "Wi-Fi"
+      },
+      "hgh-keys": {
+        "name": "Keys"
+      },
+      "hgh-neighbour": {
+        "name": "Good neighbour mode"
+      },
+      "hgh-settle": {
+        "name": "Settle in"
+      },
+      "hgh-out": {
+        "name": "Out and about"
+      },
+      "hgh-before": {
+        "name": "Before you head out"
+      }
+    }
+  }
+}

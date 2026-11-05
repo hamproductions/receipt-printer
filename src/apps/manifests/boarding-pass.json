@@ -77,7 +77,8 @@
         "lineHeight": 1.5,
         "letterSpacing": 0,
         "y": 0,
-        "text": "BOARDING PASS"
+        "text": "BOARDING PASS",
+        "group": "boarding-pass-1"
       },
       {
         "kind": "text",
@@ -94,7 +95,8 @@
         "lineHeight": 1,
         "letterSpacing": 0,
         "y": 64,
-        "text": "{{fromCode}}"
+        "text": "{{fromCode}}",
+        "group": "boarding-pass-2"
       },
       {
         "kind": "text",
@@ -111,7 +113,8 @@
         "lineHeight": 1,
         "letterSpacing": 0,
         "y": 64,
-        "text": "{{toCode}}"
+        "text": "{{toCode}}",
+        "group": "boarding-pass-2"
       },
       {
         "kind": "text",
@@ -128,7 +131,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 96,
-        "text": "▶"
+        "text": "▶",
+        "group": "boarding-pass-2"
       },
       {
         "kind": "text",
@@ -145,7 +149,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 164,
-        "text": "{{fromCity}}"
+        "text": "{{fromCity}}",
+        "group": "boarding-pass-3"
       },
       {
         "kind": "text",
@@ -162,7 +167,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 164,
-        "text": "{{toCity}}"
+        "text": "{{toCity}}",
+        "group": "boarding-pass-3"
       },
       {
         "kind": "shape",
@@ -175,7 +181,8 @@
         "fill": "solid",
         "stroke": 2,
         "radius": 0,
-        "y": 198
+        "y": 198,
+        "group": "boarding-pass-3"
       },
       {
         "kind": "text",
@@ -192,7 +199,8 @@
         "lineHeight": 1.3,
         "letterSpacing": 0,
         "y": 216,
-        "text": "GATE\n{{gate}}"
+        "text": "GATE\n{{gate}}",
+        "group": "boarding-pass-4"
       },
       {
         "kind": "text",
@@ -209,7 +217,8 @@
         "lineHeight": 1.3,
         "letterSpacing": 0,
         "y": 216,
-        "text": "SEAT\n{{seat}}"
+        "text": "SEAT\n{{seat}}",
+        "group": "boarding-pass-4"
       },
       {
         "kind": "text",
@@ -226,7 +235,8 @@
         "lineHeight": 1.3,
         "letterSpacing": 0,
         "y": 216,
-        "text": "BOARD\n{{board}}"
+        "text": "BOARD\n{{board}}",
+        "group": "boarding-pass-4"
       },
       {
         "kind": "text",
@@ -243,7 +253,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 284,
-        "text": "PASSENGER  {{passenger}}"
+        "text": "PASSENGER  {{passenger}}",
+        "group": "boarding-pass-5"
       },
       {
         "kind": "barcode",
@@ -255,7 +266,8 @@
         "data": "INK{num:1000-9999}",
         "format": "CODE128",
         "showText": false,
-        "y": 324
+        "y": 324,
+        "group": "boarding-pass-5"
       },
       {
         "kind": "shape",
@@ -268,13 +280,31 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 430
+        "y": 430,
+        "group": "boarding-pass-5"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "boarding-pass-1": {
+        "name": "BOARDING PASS"
+      },
+      "boarding-pass-2": {
+        "name": "TYO"
+      },
+      "boarding-pass-3": {
+        "name": "Tokyo"
+      },
+      "boarding-pass-4": {
+        "name": "GATE #"
+      },
+      "boarding-pass-5": {
+        "name": "PASSENGER YOUR NAME"
+      }
     }
   }
 }

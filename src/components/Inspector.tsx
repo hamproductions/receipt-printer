@@ -1,92 +1,23 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import type { BarcodeElement, BarcodeFormat, DitherAlgo, Doc, Element, Fill, ImageElement, QrElement, ShapeElement, ShapeKind, TextElement } from '../doc';
+import type { BarcodeElement, BarcodeFormat, DitherAlgo, Doc, Element, Fill, IconName, ImageElement, QrElement, ShapeElement, ShapeKind, TextElement } from '../doc';
 import { DEFAULT_END_SPACE, DOTS_PER_MM } from '../doc';
 import { allFonts, CATEGORY_LABEL, fontInfo, hasLocalFont, requestFont, type FontCategory } from '../fonts';
 import { ditherSamples, frameDefaults } from '../render';
 import { estimateSeconds, LONG_PRINT_ROWS, MAX_PRINT_ROWS } from '../printer';
 import { TOKEN_HELP } from '../tokens';
+import type { Issue } from '../check';
 import type { Patch } from './Stage';
-
-type Field<T> = { label: string; value: T; onChange: (value: T) => void };
-
-function Range({ label, value, onChange, min, max, step = 1, unit = '' }: Field<number> & { min: number; max: number; step?: number; unit?: string }) {
-  return (
-    <label className="field field-range">
-      <span className="field-label">
-        {label}
-        <output>
-          {value}
-          {unit}
-        </output>
-      </span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
-    </label>
-  );
-}
-
-function NumberInput({ label, value, onChange, min, max }: Field<number> & { min?: number; max?: number }) {
-  return (
-    <label className="field field-number">
-      <span className="field-label">{label}</span>
-      <input
-        type="number"
-        min={min}
-        max={max}
-        value={Math.round(value)}
-        onChange={(event) => {
-          const next = Number(event.target.value);
-          if (Number.isFinite(next)) {
-            onChange(next);
-          }
-        }}
-      />
-    </label>
-  );
-}
-
-function Choice<T extends string>({ label, value, onChange, options }: Field<T> & { options: { value: T; label: string }[] }) {
-  return (
-    <fieldset className="field segmented">
-      <legend className="field-label">{label}</legend>
-      <div className="segmented-row">
-        {options.map((option) => (
-          <button key={option.value} type="button" aria-pressed={option.value === value} onClick={() => onChange(option.value)}>
-            {option.label}
-          </button>
-        ))}
-      </div>
-    </fieldset>
-  );
-}
-
-function Select<T extends string>({ label, value, onChange, options }: Field<T> & { options: { value: T; label: string }[] }) {
-  return (
-    <label className="field">
-      <span className="field-label">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value as T)}>
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function Toggle({ label, value, onChange }: Field<boolean>) {
-  return (
-    <label className="field toggle">
-      <input type="checkbox" checked={value} onChange={(event) => onChange(event.target.checked)} />
-      <span>{label}</span>
-    </label>
-  );
-}
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Range, NumberInput, Choice, Select, Toggle, type Field } from './fields/controls';
+import { fieldStyles as fields } from './fields/styles';
+import { panelStyles as panel } from './panel.styles';
+import { inspectorStyles as styles } from './inspector.styles';
 
 function Group({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="group">
-      <h3>{title}</h3>
+    <section className={panel.group}>
+      <h3 className={panel.groupHeading}>{title}</h3>
       {children}
     </section>
   );
@@ -103,31 +34,31 @@ function FontPicker({ value, onChange, onUpload }: Omit<Field<string>, 'label'> 
   }, [value]);
   const categories = [...new Set(fonts.map((font) => font.category))] as FontCategory[];
   return (
-    <div className="field">
-      <span className="field-label">Typeface</span>
-      <div className="font-list" ref={listRef} role="group" aria-label="Typeface">
+    <div className={fields.field}>
+      <span className={fields.label}>Typeface</span>
+      <div className={styles.fontList} ref={listRef} role="group" aria-label="Typeface">
         {categories.map((category) => (
-          <div key={category} className="font-category">
-            <span className="font-category-name">{CATEGORY_LABEL[category]}</span>
+          <div key={category}>
+            <span className={styles.fontCategory}>{CATEGORY_LABEL[category]}</span>
             {fonts
               .filter((font) => font.category === category)
               .map((font) => (
-                <button key={font.family} type="button" className="font-option" aria-pressed={font.family === value} style={{ fontFamily: `"${font.family}", sans-serif` }} onClick={() => onChange(font.family)}>
+                <Button key={font.family} type="button" className={styles.fontOption} aria-pressed={font.family === value} style={{ fontFamily: `"${font.family}", sans-serif` }} onClick={() => onChange(font.family)}>
                   <span>{font.family}</span>
-                  <span className="font-sample">{font.japanese ? 'あア字 Aa' : 'Aa 123'}</span>
-                </button>
+                  <span className={styles.fontSample}>{font.japanese ? 'あア字 Aa' : 'Aa 123'}</span>
+                </Button>
               ))}
           </div>
         ))}
       </div>
       {fontInfo(value)?.local && (
-        <p className="panel-note">
+        <p className={panel.note}>
           {hasLocalFont(fontInfo(value)!.local!) ? `Using ${value} installed on this computer.` : `${value} is not installed here, so it prints with the bundled IBM Plex Sans.`}
         </p>
       )}
-      <button type="button" className="link-button" onClick={onUpload}>
+      <Button type="button" className={panel.link} onClick={onUpload}>
         Load your own font file
-      </button>
+      </Button>
     </div>
   );
 }
@@ -150,14 +81,14 @@ const DITHERS: { value: DitherAlgo; label: string }[] = [
 function DitherLab({ element, onPatch }: { element: ImageElement } & Pick<ElementProps, 'onPatch'>) {
   const previews = ditherSamples(element, DITHERS.map((dither) => dither.value));
   return (
-    <fieldset className="field">
-      <legend className="field-label">Dithering (None keeps black and white as is; each tile shows this image at real dot size)</legend>
-      <div className="dither-lab">
+    <fieldset className={fields.field}>
+      <legend className={fields.label}>Dithering (None keeps black and white as is; each tile shows this image at real dot size)</legend>
+      <div className={styles.dither}>
         {DITHERS.map((dither) => (
-          <button key={dither.value} type="button" className="dither-tile" aria-pressed={element.dither === dither.value} onClick={() => onPatch({ dither: dither.value } as Partial<ImageElement>)}>
-            {previews ? <img src={previews[dither.value]} alt="" /> : <span className="dither-empty" />}
+          <Button key={dither.value} type="button" className={styles.ditherTile} aria-pressed={element.dither === dither.value} onClick={() => onPatch({ dither: dither.value } as Partial<ImageElement>)}>
+            {previews ? <img className={styles.ditherImage} src={previews[dither.value]} alt="" /> : <span className={styles.ditherImage} />}
             <span>{dither.label}</span>
-          </button>
+          </Button>
         ))}
       </div>
     </fieldset>
@@ -181,7 +112,23 @@ const SHAPES: { value: ShapeKind; label: string }[] = [
   { value: 'line', label: 'Rule' },
   { value: 'dashes', label: 'Dashed rule' },
   { value: 'zigzag', label: 'Zigzag' },
-  { value: 'scallop', label: 'Ticket edge' }
+  { value: 'scallop', label: 'Ticket edge' },
+  { value: 'icon', label: 'Icon' }
+];
+
+const ICONS: { value: IconName; label: string }[] = [
+  { value: 'wifi', label: 'Wi-Fi' },
+  { value: 'key', label: 'Key' },
+  { value: 'home', label: 'Home' },
+  { value: 'calendar', label: 'Calendar' },
+  { value: 'clock', label: 'Clock' },
+  { value: 'rules', label: 'List' },
+  { value: 'plug', label: 'Plug' },
+  { value: 'check', label: 'Checkbox' },
+  { value: 'trash', label: 'Bin' },
+  { value: 'heart', label: 'Heart' },
+  { value: 'info', label: 'Info' },
+  { value: 'star', label: 'Star' }
 ];
 
 const FORMATS: { value: BarcodeFormat; label: string }[] = [
@@ -204,22 +151,35 @@ type ElementProps = {
   onCrop: (on: boolean) => void;
 };
 
-function TextFields({ element, onPatch, onUploadFont }: { element: TextElement } & Pick<ElementProps, 'onPatch' | 'onUploadFont'>) {
+function TextFields({ element, onPatch, onUploadFont, laidHeight, clipped }: { element: TextElement; laidHeight: number; clipped: boolean } & Pick<ElementProps, 'onPatch' | 'onUploadFont'>) {
   const weights = fontInfo(element.font)?.weights ?? [400];
+  const fit = element.fit ?? 'grow';
   return (
     <>
-      <label className="field">
-        <span className="field-label">Text</span>
-        <textarea rows={4} value={element.text} onChange={(event) => onPatch({ text: event.target.value }, `text-${element.id}`)} />
+      <Choice
+        label="When text is long"
+        value={fit}
+        options={[
+          { value: 'grow', label: 'Wrap and grow' },
+          { value: 'shrink', label: 'Shrink to fit box' },
+          { value: 'line', label: 'One line, shrink' }
+        ]}
+        onChange={(next) => onPatch({ fit: next, h: Math.max(8, Math.round(laidHeight)) } as Partial<TextElement>)}
+      />
+      {fit !== 'grow' && <Range label="Box height" value={Math.round(element.h)} min={8} max={600} unit=" dots" onChange={(h) => onPatch({ h } as Partial<TextElement>, `th-${element.id}`)} />}
+      {clipped && <p className={fields.error}>This text does not fit even at the smallest size. Make the box bigger or the text shorter.</p>}
+      <label className={fields.field}>
+        <span className={fields.label}>Text</span>
+        <textarea className={fields.textarea} rows={4} value={element.text} onChange={(event) => onPatch({ text: event.target.value }, `text-${element.id}`)} />
       </label>
-      <details className="tokens">
+      <details className={panel.details}>
         <summary>Live tokens: dates, dice, random picks</summary>
-        <ul>
+        <ul className={styles.tokenList}>
           {TOKEN_HELP.map((item) => (
-            <li key={item.token}>
-              <button type="button" className="token" onClick={() => onPatch({ text: `${element.text}${item.token}` })}>
+            <li key={item.token} className={styles.tokenRow}>
+              <Button type="button" className={styles.token} onClick={() => onPatch({ text: `${element.text}${item.token}` })}>
                 {item.token}
-              </button>
+              </Button>
               <span>{item.meaning}</span>
             </li>
           ))}
@@ -239,33 +199,33 @@ function TextFields({ element, onPatch, onUploadFont }: { element: TextElement }
 function ImageFields({ element, onPatch, onPickImage, onFitImage, onWholePixels, cropping, onCrop }: { element: ImageElement } & Pick<ElementProps, 'onPatch' | 'onPickImage' | 'onFitImage' | 'onWholePixels' | 'cropping' | 'onCrop'>) {
   return (
     <>
-      <div className="button-row">
-        <button type="button" onClick={onPickImage}>
+      <div className={panel.row}>
+        <Button type="button" onClick={onPickImage}>
           {element.src ? 'Replace photo' : 'Choose photo'}
-        </button>
+        </Button>
         {element.src && (
-          <button type="button" onClick={onFitImage}>
+          <Button type="button" onClick={onFitImage}>
             Match photo shape
-          </button>
+          </Button>
         )}
       </div>
       {element.src && (
-        <div className="crop-tools">
-          <button type="button" aria-pressed={cropping} onClick={() => onCrop(!cropping)}>
+        <div className={styles.crop}>
+          <Button type="button" className={styles.pressed} aria-pressed={cropping} onClick={() => onCrop(!cropping)}>
             {cropping ? 'Done cropping' : 'Crop and reposition'}
-          </button>
+          </Button>
           <Range label="Crop zoom" value={element.cropZoom ?? 1} min={1} max={5} step={0.05} unit="×" onChange={(cropZoom) => onPatch({ cropZoom } as Partial<ImageElement>, `crop-zoom-${element.id}`)} />
-          <button type="button" className="link-button" onClick={() => onPatch({ cropZoom: 1, cropX: 0, cropY: 0 } as Partial<ImageElement>)}>
+          <Button type="button" className={panel.link} onClick={() => onPatch({ cropZoom: 1, cropX: 0, cropY: 0 } as Partial<ImageElement>)}>
             Reset crop
-          </button>
+          </Button>
         </div>
       )}
       {element.src && (
         <>
           <Toggle label="Keep pixels sharp (for pixel art and black-and-white images)" value={element.pixelated === true} onChange={(pixelated) => onPatch({ pixelated } as Partial<ImageElement>)} />
-          <button type="button" onClick={onWholePixels}>
+          <Button type="button" onClick={onWholePixels}>
             Whole-pixel size (prints dot for dot)
-          </button>
+          </Button>
         </>
       )}
       {element.src && <Toggle label="Trim white edges (good for logos)" value={element.trim === true} onChange={(trim) => onPatch({ trim } as Partial<ImageElement>)} />}
@@ -289,11 +249,11 @@ function ImageFields({ element, onPatch, onPickImage, onFitImage, onWholePixels,
 function QrFields({ element, onPatch }: { element: QrElement } & Pick<ElementProps, 'onPatch'>) {
   return (
     <>
-      <label className="field">
-        <span className="field-label">Link or text</span>
-        <input value={element.data} onChange={(event) => onPatch({ data: event.target.value } as Partial<QrElement>, `qr-${element.id}`)} />
+      <label className={fields.field}>
+        <span className={fields.label}>Link or text</span>
+        <Input value={element.data} onChange={(event) => onPatch({ data: event.target.value } as Partial<QrElement>, `qr-${element.id}`)} />
       </label>
-      {!element.data && <p className="field-error">Type something to encode. An empty QR code prints nothing.</p>}
+      {!element.data && <p className={fields.error}>Type something to encode. An empty QR code prints nothing.</p>}
       <Choice label="Error correction" value={element.ecc} options={[{ value: 'L', label: 'L 7%' }, { value: 'M', label: 'M 15%' }, { value: 'Q', label: 'Q 25%' }, { value: 'H', label: 'H 30%' }]} onChange={(ecc) => onPatch({ ecc } as Partial<QrElement>)} />
     </>
   );
@@ -302,11 +262,11 @@ function QrFields({ element, onPatch }: { element: QrElement } & Pick<ElementPro
 function BarcodeFields({ element, onPatch, barcodeError }: { element: BarcodeElement } & Pick<ElementProps, 'onPatch' | 'barcodeError'>) {
   return (
     <>
-      <label className="field">
-        <span className="field-label">Value</span>
-        <input value={element.data} onChange={(event) => onPatch({ data: event.target.value } as Partial<BarcodeElement>, `bc-${element.id}`)} />
+      <label className={fields.field}>
+        <span className={fields.label}>Value</span>
+        <Input value={element.data} onChange={(event) => onPatch({ data: event.target.value } as Partial<BarcodeElement>, `bc-${element.id}`)} />
       </label>
-      {barcodeError && <p className="field-error">{barcodeError}. Nothing prints until the value fits the format.</p>}
+      {barcodeError && <p className={fields.error}>{barcodeError}. Nothing prints until the value fits the format.</p>}
       <Select label="Format" value={element.format} options={FORMATS} onChange={(format) => onPatch({ format } as Partial<BarcodeElement>)} />
       <Toggle label="Print the value under the bars" value={element.showText} onChange={(showText) => onPatch({ showText } as Partial<BarcodeElement>)} />
     </>
@@ -317,7 +277,8 @@ function ShapeFields({ element, onPatch }: { element: ShapeElement } & Pick<Elem
   const closed = element.shape === 'rect' || element.shape === 'ellipse';
   return (
     <>
-      <Select label="Shape" value={element.shape} options={SHAPES} onChange={(shape) => onPatch({ shape } as Partial<ShapeElement>)} />
+      <Select label="Shape" value={element.shape} options={SHAPES} onChange={(shape) => onPatch({ shape, ...(shape === 'icon' ? { icon: element.icon ?? 'info', stroke: 2 } : {}) } as Partial<ShapeElement>)} />
+      {element.shape === 'icon' && <Select label="Icon" value={element.icon ?? 'info'} options={ICONS} onChange={(icon) => onPatch({ icon } as Partial<ShapeElement>)} />}
       <Select label="Fill" value={element.fill} options={closed ? FILLS : FILLS.filter((fill) => fill.value !== 'none')} onChange={(fill) => onPatch({ fill } as Partial<ShapeElement>)} />
       {(closed || element.shape === 'line' || element.shape === 'dashes') && <Range label={closed ? 'Outline' : 'Thickness'} value={element.stroke} min={0} max={40} unit=" dots" onChange={(stroke) => onPatch({ stroke } as Partial<ShapeElement>, `st-${element.id}`)} />}
       {element.shape === 'rect' && <Range label="Corner radius" value={element.radius} min={0} max={120} unit=" dots" onChange={(radius) => onPatch({ radius } as Partial<ShapeElement>, `rd-${element.id}`)} />}
@@ -327,29 +288,29 @@ function ShapeFields({ element, onPatch }: { element: ShapeElement } & Pick<Elem
 
 const KIND_LABEL: Record<Element['kind'], string> = { text: 'Text', image: 'Photo', qr: 'QR code', barcode: 'Barcode', shape: 'Shape' };
 
-export function ElementInspector(props: ElementProps & { paperWidth: number; onDuplicate: () => void; onDelete: () => void; onLayer: (direction: 1 | -1) => void }) {
+export function ElementInspector(props: ElementProps & { laidHeight: number; clipped: boolean; paperWidth: number; onDuplicate: () => void; onDelete: () => void; onLayer: (direction: 1 | -1) => void }) {
   const { element, onPatch } = props;
   return (
-    <div className="inspector-body">
-      <div className="inspector-head">
-        <h2 className="panel-title">{KIND_LABEL[element.kind]}</h2>
-        <div className="icon-row">
-          <button type="button" onClick={() => props.onLayer(-1)} title="Send backward">
+    <div className={panel.body}>
+      <div className={panel.body}>
+        <h2 className={panel.heading}>{KIND_LABEL[element.kind]}</h2>
+        <div className={panel.row}>
+          <Button type="button" onClick={() => props.onLayer(-1)} title="Send backward">
             Back
-          </button>
-          <button type="button" onClick={() => props.onLayer(1)} title="Bring forward">
+          </Button>
+          <Button type="button" onClick={() => props.onLayer(1)} title="Bring forward">
             Front
-          </button>
-          <button type="button" onClick={props.onDuplicate} title="Duplicate (Ctrl+D)">
+          </Button>
+          <Button type="button" onClick={props.onDuplicate} title="Duplicate (Ctrl+D)">
             Copy
-          </button>
-          <button type="button" className="danger" onClick={props.onDelete} title="Delete (Del)">
+          </Button>
+          <Button type="button" className={panel.danger} onClick={props.onDelete} title="Delete (Del)">
             Delete
-          </button>
+          </Button>
         </div>
       </div>
       <Group title="Content">
-        {element.kind === 'text' && <TextFields element={element} onPatch={onPatch} onUploadFont={props.onUploadFont} />}
+        {element.kind === 'text' && <TextFields element={element} onPatch={onPatch} onUploadFont={props.onUploadFont} laidHeight={props.laidHeight} clipped={props.clipped} />}
         {element.kind === 'image' && <ImageFields element={element} onPatch={onPatch} onPickImage={props.onPickImage} onFitImage={props.onFitImage} onWholePixels={props.onWholePixels} cropping={props.cropping} onCrop={props.onCrop} />}
         {element.kind === 'qr' && <QrFields element={element} onPatch={onPatch} />}
         {element.kind === 'barcode' && <BarcodeFields element={element} onPatch={onPatch} barcodeError={props.barcodeError} />}
@@ -357,23 +318,25 @@ export function ElementInspector(props: ElementProps & { paperWidth: number; onD
         <Toggle label="Invert (white on black)" value={element.invert} onChange={(invert) => onPatch({ invert })} />
       </Group>
       <Group title="Position">
-        <div className="grid-2">
+        <div className={panel.grid}>
           <NumberInput label="X" value={element.x} onChange={(x) => onPatch({ x })} />
           <NumberInput label="Y" value={element.y} onChange={(y) => onPatch({ y })} />
           <NumberInput label="Width" value={element.w} min={8} onChange={(w) => onPatch({ w: Math.max(8, w) })} />
           {element.kind !== 'text' && <NumberInput label="Height" value={element.h} min={8} onChange={(h) => onPatch({ h: Math.max(8, h) })} />}
           <NumberInput label="Rotation" value={element.rotation} onChange={(rotation) => onPatch({ rotation: ((rotation % 360) + 360) % 360 })} />
         </div>
-        <button type="button" onClick={() => onPatch({ x: 0, w: props.paperWidth })}>
+        <Button type="button" onClick={() => onPatch({ x: 0, w: props.paperWidth })}>
           Stretch edge to edge
-        </button>
-        <p className="panel-note">Units are printer dots. 8 dots = 1 mm. The print head covers {props.paperWidth} dots.</p>
+        </Button>
+        <p className={panel.note}>Units are printer dots. 8 dots = 1 mm. The print head covers {props.paperWidth} dots.</p>
       </Group>
     </div>
   );
 }
 
 type DocProps = {
+  issues: Issue[];
+  onSelectIssue: (id: string) => void;
   ditherNew: boolean;
   onDitherNew: (on: boolean) => void;
   ditheredCount: number;
@@ -393,16 +356,32 @@ type DocProps = {
   onCopyLink: (kind: 'design' | 'app') => void;
 };
 
-export function DocInspector({ ditherNew, onDitherNew, ditheredCount, onUndither, doc, size, onDoc, onReroll, onExportPng, onExportBin, onExportJson, onImportJson, onShelve, coverage, link, hasApp, onCopyLink }: DocProps) {
+export function DocInspector({ issues, onSelectIssue, ditherNew, onDitherNew, ditheredCount, onUndither, doc, size, onDoc, onReroll, onExportPng, onExportBin, onExportJson, onImportJson, onShelve, coverage, link, hasApp, onCopyLink }: DocProps) {
   const length = doc.landscape ? size.width : size.height;
   const setPrint = (patch: Partial<Doc['print']>, group?: string) => onDoc((current) => ({ ...current, print: { ...current.print, ...patch } }), group);
   return (
-    <div className="inspector-body">
-      <h2 className="panel-title">This print</h2>
+    <div className={panel.body}>
+      <h2 className={panel.heading}>This print</h2>
+      <Group title={issues.length ? `Check (${issues.length})` : 'Check'}>
+        {issues.length === 0 ? (
+          <p className={panel.note}>Nothing is cut off, clipped or overlapping.</p>
+        ) : (
+          <ul className={styles.issues}>
+            {issues.map((issue, index) => (
+              <li key={`${issue.id}-${issue.kind}-${index}`} className={styles.issue}>
+                <span>{issue.message}</span>
+                <Button type="button" className={styles.issueButton} onClick={() => onSelectIssue(issue.id)}>
+                  Select
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Group>
       <Group title="Paper">
-        <label className="field">
-          <span className="field-label">Name</span>
-          <input value={doc.name} onChange={(event) => onDoc((current) => ({ ...current, name: event.target.value }), 'doc-name')} />
+        <label className={fields.field}>
+          <span className={fields.label}>Name</span>
+          <Input value={doc.name} onChange={(event) => onDoc((current) => ({ ...current, name: event.target.value }), 'doc-name')} />
         </label>
         <Choice
           label="Direction"
@@ -410,27 +389,27 @@ export function DocInspector({ ditherNew, onDitherNew, ditheredCount, onUndither
           options={[{ value: 'portrait', label: 'Down the roll' }, { value: 'landscape', label: 'Along the roll' }]}
           onChange={(value) => onDoc((current) => ({ ...current, landscape: value === 'landscape' }))}
         />
-        <p className="panel-note">The printer gets exactly this paper, dot for dot, including the blank end you see under the design.</p>
+        <p className={panel.note}>The printer gets exactly this paper, dot for dot, including the blank end you see under the design.</p>
         <Toggle label="Grow length to fit content" value={doc.autoLength} onChange={(autoLength) => onDoc((current) => ({ ...current, autoLength, length }))} />
         {doc.autoLength && <Range label="Blank paper at the end" value={Math.round((doc.endSpace ?? DEFAULT_END_SPACE) / DOTS_PER_MM)} min={0} max={40} unit=" mm" onChange={(mm) => onDoc((current) => ({ ...current, endSpace: mm * DOTS_PER_MM }), 'end-space')} />}
-        {doc.autoLength && (doc.endSpace ?? DEFAULT_END_SPACE) < 10 * DOTS_PER_MM && <p className="panel-note">The tear bar sits about 10 mm past the print head, so less than that leaves the end of the design inside the printer.</p>}
+        {doc.autoLength && (doc.endSpace ?? DEFAULT_END_SPACE) < 10 * DOTS_PER_MM && <p className={panel.note}>The tear bar sits about 10 mm past the print head, so less than that leaves the end of the design inside the printer.</p>}
         {!doc.autoLength && <Range label="Length" value={Math.round(doc.length / DOTS_PER_MM)} min={15} max={600} unit=" mm" onChange={(mm) => onDoc((current) => ({ ...current, length: mm * DOTS_PER_MM }), 'doc-length')} />}
-        <p className="panel-note">
+        <p className={panel.note}>
           {Math.round(length / DOTS_PER_MM)} mm of paper per copy, about {estimateSeconds(length)} s over Bluetooth, {Math.round(coverage * 100)}% of dots heated.
         </p>
         {length > MAX_PRINT_ROWS ? (
-          <p className="field-error">Longer than 1 m. The printer maker advises shorter continuous prints, so you will be asked to confirm.</p>
+          <p className={fields.error}>Longer than 1 m. The printer maker advises shorter continuous prints, so you will be asked to confirm.</p>
         ) : length > LONG_PRINT_ROWS ? (
-          <p className="field-error">Longer than 30 cm. Check the roll has enough paper left.</p>
+          <p className={fields.error}>Longer than 30 cm. Check the roll has enough paper left.</p>
         ) : null}
-        {coverage > 0.5 && <p className="field-error">Over half the dots are black. Large solid areas print faint on low battery; try a pattern fill.</p>}
+        {coverage > 0.5 && <p className={fields.error}>Over half the dots are black. Large solid areas print faint on low battery; try a pattern fill.</p>}
       </Group>
       <Group title="Printing">
         <Toggle label="Dither new photos (off prints images as plain black and white)" value={ditherNew} onChange={onDitherNew} />
         {ditheredCount > 0 && (
-          <button type="button" onClick={onUndither}>
+          <Button type="button" onClick={onUndither}>
             Remove dithering from {ditheredCount === 1 ? 'the 1 dithered image' : `all ${ditheredCount} dithered images`}
-          </button>
+          </Button>
         )}
         <Range label="Boldness" value={doc.print.darkness} min={60} max={230} onChange={(darkness) => setPrint({ darkness }, 'darkness')} />
         <Range label="Heat (0 keeps printer default)" value={doc.print.heat} min={0} max={255} onChange={(heat) => setPrint({ heat }, 'heat')} />
@@ -450,7 +429,7 @@ export function DocInspector({ ditherNew, onDitherNew, ditheredCount, onUndither
           max={2048}
           onChange={(value) => setPrint({ printWidth: Math.max(128, Math.min(2048, Math.round(value / 8) * 8)) }, 'print-width')}
         />
-        {(doc.print.printWidth ?? 384) !== 384 && <p className="panel-note">The design is scaled to this width when printing, so dots no longer match the preview one to one.</p>}
+        {(doc.print.printWidth ?? 384) !== 384 && <p className={panel.note}>The design is scaled to this width when printing, so dots no longer match the preview one to one.</p>}
         <Select
           label="Cutter"
           value={doc.print.cut ?? 'none'}
@@ -459,45 +438,45 @@ export function DocInspector({ ditherNew, onDitherNew, ditheredCount, onUndither
         />
         {doc.print.cut && doc.print.cut !== 'none' && <Range label="Feed before the cut" value={doc.print.cutFeed ?? 0} min={0} max={255} onChange={(cutFeed) => setPrint({ cutFeed }, 'cut-feed')} />}
         <Range label="Copies" value={doc.print.copies} min={1} max={20} onChange={(copies) => setPrint({ copies }, 'copies')} />
-        <button type="button" onClick={onReroll}>
+        <Button type="button" onClick={onReroll}>
           Reroll dice and picks
-        </button>
+        </Button>
       </Group>
       <Group title="Files">
-        <div className="button-row">
-          <button type="button" onClick={onShelve}>
+        <div className={panel.row}>
+          <Button type="button" onClick={onShelve}>
             Save to my designs
-          </button>
-          <button type="button" onClick={onExportPng}>
+          </Button>
+          <Button type="button" onClick={onExportPng}>
             Download PNG
-          </button>
-          <button type="button" onClick={onExportBin}>
+          </Button>
+          <Button type="button" onClick={onExportBin}>
             Download ESC/POS
-          </button>
-          <button type="button" onClick={onExportJson}>
+          </Button>
+          <Button type="button" onClick={onExportJson}>
             Export design
-          </button>
-          <button type="button" onClick={onImportJson}>
+          </Button>
+          <Button type="button" onClick={onImportJson}>
             Import design
-          </button>
-          <button type="button" onClick={() => onCopyLink('design')}>
+          </Button>
+          <Button type="button" onClick={() => onCopyLink('design')}>
             Copy share link
-          </button>
+          </Button>
           {hasApp && (
-            <button type="button" onClick={() => onCopyLink('app')}>
+            <Button type="button" onClick={() => onCopyLink('app')}>
               Copy preset link
-            </button>
+            </Button>
           )}
         </div>
         {link && (
-          <label className="field">
-            <span className="field-label">Link ({link.length.toLocaleString()} characters). It opens this design in inkless; nothing is uploaded.</span>
-            <input readOnly value={link} onFocus={(event) => event.target.select()} />
+          <label className={fields.field}>
+            <span className={fields.label}>Link ({link.length.toLocaleString()} characters). It opens this design in inkless; nothing is uploaded.</span>
+            <Input readOnly value={link} onFocus={(event) => event.target.select()} />
           </label>
         )}
       </Group>
       <Group title="Shortcuts">
-        <ul className="shortcuts">
+        <ul className={styles.shortcuts}>
           <li>
             <kbd>Del</kbd> delete, <kbd>Ctrl</kbd>+<kbd>D</kbd> duplicate
           </li>

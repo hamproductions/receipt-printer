@@ -14,7 +14,7 @@ function pad(value: number) {
   return value.toString().padStart(2, '0');
 }
 
-export type TokenContext = { seed: number; copy: number; now: Date; values?: AppValues; fields?: Field[] };
+export type TokenContext = { seed: number; copy: number; now: Date; values?: AppValues; fields?: Field[]; blanks?: string[] };
 
 export function hasTokens(text: string) {
   return text.search(TOKEN) >= 0;
@@ -22,7 +22,7 @@ export function hasTokens(text: string) {
 
 export function expandTokens(raw: string, context: TokenContext) {
   let index = 0;
-  const text = context.values && context.fields ? expandBindings(raw, context.values, context.fields) : raw;
+  const text = context.values && context.fields ? expandBindings(raw, context.values, context.fields, context.blanks) : raw;
   return text.replace(TOKEN, (_, token: string) => {
     index += 1;
     const roll = random(context.seed * 7919 + context.copy * 104729 + index * 31);

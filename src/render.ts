@@ -95,9 +95,6 @@ function canvas(width: number, height: number) {
 const measureCanvas = canvas(1, 1);
 const measureCtx = measureCanvas.getContext('2d')!;
 
-function fontString(element: TextElement) {
-  return `${element.italic ? 'italic ' : ''}${element.weight} ${element.size}px ${fontStack(element.font)}`;
-}
 
 const CJK = /[　-鿿＀-￯぀-ヿ]/;
 
@@ -124,15 +121,33 @@ function tokenize(line: string) {
   return parts;
 }
 
-export function layoutText(element: TextElement, text: string) {
-  measureCtx.font = fontString(element);
-  measureCtx.letterSpacing = `${element.letterSpacing}px`;
+const MIN_TEXT = 6;
+
+function fontAt(element: TextElement, size: number) {
+  return `${element.italic ? 'italic ' : ''}${element.weight} ${size}px ${fontStack(element.font)}`;
+}
+
+function wrap(text: string, width: number, breakLines: boolean) {
   const lines: string[] = [];
+  let widest = 0;
+  const measure = (value: string) => measureCtx.measureText(value).width;
   for (const paragraph of text.split('\n')) {
+    if (!breakLines) {
+      lines.push(paragraph);
+      widest = Math.max(widest, measure(paragraph));
+      continue;
+    }
     let line = '';
-    for (const part of tokenize(paragraph)) {
+    const parts = tokenize(paragraph).flatMap((part) => {
+      if (measure(part.trimEnd()) <= width) {
+        return [part];
+      }
+      const pieces = part.split(/(?<=[-/_.])/);
+      return pieces.flatMap((piece) => (measure(piece.trimEnd()) > width ? [...piece] : [piece]));
+    });
+    for (const part of parts) {
       const candidate = line + part;
-      if (line && measureCtx.measureText(candidate.trimEnd()).width > element.w) {
+      if (line && measure(candidate.trimEnd()) > width) {
         lines.push(line.trimEnd());
         line = part.trimStart();
       } else {
@@ -141,32 +156,68 @@ export function layoutText(element: TextElement, text: string) {
     }
     lines.push(line.trimEnd());
   }
-  const lineHeight = element.size * element.lineHeight;
-  return { lines, lineHeight, height: Math.ceil(lines.length * lineHeight) };
+  for (const line of lines) {
+    widest = Math.max(widest, measure(line));
+  }
+  return { lines, widest };
+}
+
+export type TextFit = { lines: string[]; size: number; lineHeight: number; height: number; clipped: boolean };
+
+export function layoutText(element: TextElement, text: string): TextFit {
+  const mode = element.fit ?? 'grow';
+  const measureAt = (size: number) => {
+    measureCtx.font = fontAt(element, size);
+    measureCtx.letterSpacing = `${element.letterSpacing}px`;
+    const result = wrap(mode === 'line' ? text.replace(/\n+/g, ' ') : text, element.w, mode !== 'line');
+    const lineHeight = size * element.lineHeight;
+    return { lines: result.lines, size, lineHeight, height: Math.ceil(result.lines.length * lineHeight), widest: result.widest };
+  };
+  if (mode === 'grow') {
+    const result = measureAt(element.size);
+    return { ...result, clipped: false };
+  }
+  const fits = (result: ReturnType<typeof measureAt>) => result.widest <= element.w + 0.5 && (mode === 'line' || result.height <= element.h + 0.5);
+  for (let size = element.size; size >= MIN_TEXT; size -= size > 24 ? 1 : 0.5) {
+    const result = measureAt(size);
+    if (fits(result)) {
+      return { ...result, clipped: false };
+    }
+  }
+  const smallest = measureAt(MIN_TEXT);
+  return { ...smallest, clipped: true };
 }
 
 export function textInkSpan(element: TextElement, tokens: TokenContext) {
-  const { lines } = layoutText(element, expandTokens(element.text, tokens));
-  measureCtx.font = fontString(element);
+  const fit = layoutText(element, expandTokens(element.text, tokens));
+  measureCtx.font = fontAt(element, fit.size);
   measureCtx.letterSpacing = `${element.letterSpacing}px`;
-  const width = Math.min(element.w, Math.max(element.size, ...lines.map((line) => measureCtx.measureText(line).width)));
+  const width = Math.min(element.w, Math.max(fit.size, ...fit.lines.map((line) => measureCtx.measureText(line).width)));
   const start = element.align === 'left' ? 0 : element.align === 'center' ? (element.w - width) / 2 : element.w - width;
   return { start, width };
 }
 
 export function fitTextHeight(element: TextElement, tokens?: TokenContext) {
+  if ((element.fit ?? 'grow') !== 'grow') {
+    return element.h;
+  }
   return Math.max(element.size, layoutText(element, tokens ? expandTokens(element.text, tokens) : element.text).height);
 }
 
+export function textClipped(element: TextElement, tokens: TokenContext) {
+  return layoutText(element, expandTokens(element.text, tokens)).clipped;
+}
+
 function drawText(ctx: Ctx, element: TextElement, tokens: TokenContext) {
-  const { lines, lineHeight } = layoutText(element, expandTokens(element.text, tokens));
-  ctx.font = fontString(element);
+  const fit = layoutText(element, expandTokens(element.text, tokens));
+  ctx.font = fontAt(element, fit.size);
   ctx.letterSpacing = `${element.letterSpacing}px`;
   ctx.fillStyle = '#000';
   ctx.textBaseline = 'middle';
   ctx.textAlign = element.align;
   const x = element.align === 'left' ? 0 : element.align === 'center' ? element.w / 2 : element.w;
-  lines.forEach((line, index) => ctx.fillText(line, x, index * lineHeight + lineHeight / 2));
+  const top = (element.fit ?? 'grow') === 'grow' ? 0 : Math.max(0, (element.h - fit.height) / 2);
+  fit.lines.forEach((line, index) => ctx.fillText(line, x, top + index * fit.lineHeight + fit.lineHeight / 2));
 }
 
 function drawImage(ctx: Ctx, element: ImageElement) {
@@ -392,8 +443,142 @@ function fillStyle(ctx: Ctx, fill: Fill) {
   return ctx.createPattern(patternTile(fill), 'repeat') ?? '#000';
 }
 
+function drawIcon(ctx: Ctx, name: NonNullable<ShapeElement['icon']>, w: number, h: number, stroke: number) {
+  const size = Math.min(w, h);
+  ctx.save();
+  ctx.translate((w - size) / 2, (h - size) / 2);
+  ctx.scale(size / 24, size / 24);
+  ctx.lineWidth = Math.max(1.5, (stroke || 2) * (24 / size) * 1.2);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#000';
+  ctx.fillStyle = '#000';
+  const path = new Path2D();
+  const dot = (x: number, y: number, r: number) => {
+    path.moveTo(x + r, y);
+    path.arc(x, y, r, 0, Math.PI * 2);
+  };
+  switch (name) {
+    case 'wifi':
+      for (const r of [4, 9, 14]) {
+        path.moveTo(12 + r * Math.cos(Math.PI * 1.25), 19 + r * Math.sin(Math.PI * 1.25));
+        path.arc(12, 19, r, Math.PI * 1.25, Math.PI * 1.75);
+      }
+      dot(12, 19, 1.2);
+      break;
+    case 'key':
+      dot(7, 12, 4);
+      path.moveTo(11, 12);
+      path.lineTo(21, 12);
+      path.moveTo(17, 12);
+      path.lineTo(17, 16);
+      path.moveTo(20, 12);
+      path.lineTo(20, 15);
+      break;
+    case 'home':
+      path.moveTo(3, 11);
+      path.lineTo(12, 3);
+      path.lineTo(21, 11);
+      path.moveTo(5, 9.5);
+      path.lineTo(5, 21);
+      path.lineTo(19, 21);
+      path.lineTo(19, 9.5);
+      path.moveTo(10, 21);
+      path.lineTo(10, 15);
+      path.lineTo(14, 15);
+      path.lineTo(14, 21);
+      break;
+    case 'calendar':
+      path.rect(3, 5, 18, 16);
+      path.moveTo(3, 10);
+      path.lineTo(21, 10);
+      path.moveTo(8, 3);
+      path.lineTo(8, 7);
+      path.moveTo(16, 3);
+      path.lineTo(16, 7);
+      break;
+    case 'clock':
+      dot(12, 12, 9);
+      path.moveTo(12, 7);
+      path.lineTo(12, 12);
+      path.lineTo(15.5, 14);
+      break;
+    case 'rules':
+      for (const y of [6, 12, 18]) {
+        dot(4.5, y, 1);
+        path.moveTo(8, y);
+        path.lineTo(21, y);
+      }
+      break;
+    case 'plug':
+      path.moveTo(9, 3);
+      path.lineTo(9, 8);
+      path.moveTo(15, 3);
+      path.lineTo(15, 8);
+      path.moveTo(6, 8);
+      path.lineTo(18, 8);
+      path.lineTo(18, 12);
+      path.arc(12, 12, 6, 0, Math.PI);
+      path.lineTo(6, 8);
+      path.moveTo(12, 18);
+      path.lineTo(12, 22);
+      break;
+    case 'check':
+      path.rect(3, 3, 18, 18);
+      path.moveTo(7, 12);
+      path.lineTo(10.5, 15.5);
+      path.lineTo(17, 8);
+      break;
+    case 'trash':
+      path.moveTo(4, 6);
+      path.lineTo(20, 6);
+      path.moveTo(9, 6);
+      path.lineTo(9, 3);
+      path.lineTo(15, 3);
+      path.lineTo(15, 6);
+      path.moveTo(6, 6);
+      path.lineTo(7, 21);
+      path.lineTo(17, 21);
+      path.lineTo(18, 6);
+      break;
+    case 'heart':
+      path.moveTo(12, 20);
+      path.bezierCurveTo(2, 13, 3, 4, 8.5, 4.5);
+      path.bezierCurveTo(10.5, 4.7, 12, 7, 12, 7);
+      path.bezierCurveTo(12, 7, 13.5, 4.7, 15.5, 4.5);
+      path.bezierCurveTo(21, 4, 22, 13, 12, 20);
+      break;
+    case 'info':
+      dot(12, 12, 9);
+      path.moveTo(12, 11);
+      path.lineTo(12, 17);
+      dot(12, 7.5, 0.6);
+      break;
+    case 'star':
+      for (let i = 0; i < 10; i += 1) {
+        const radius = i % 2 === 0 ? 10 : 4.2;
+        const angle = -Math.PI / 2 + (i * Math.PI) / 5;
+        const x = 12 + radius * Math.cos(angle);
+        const y = 12.5 + radius * Math.sin(angle);
+        if (i === 0) {
+          path.moveTo(x, y);
+        } else {
+          path.lineTo(x, y);
+        }
+      }
+      path.closePath();
+      break;
+  }
+  ctx.stroke(path);
+  ctx.restore();
+}
+
 function drawShape(ctx: Ctx, element: ShapeElement) {
   const { w, h, stroke } = element;
+  if (element.shape === 'icon') {
+    drawIcon(ctx, element.icon ?? 'info', w, h, stroke);
+    return;
+  }
   ctx.strokeStyle = '#000';
   ctx.lineWidth = stroke;
   if (element.shape === 'rect' || element.shape === 'ellipse') {

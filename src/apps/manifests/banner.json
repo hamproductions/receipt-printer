@@ -45,7 +45,8 @@
         "stroke": 3,
         "radius": 0,
         "y": 0,
-        "when": "topEdge"
+        "when": "topEdge",
+        "group": "banner-1"
       },
       {
         "kind": "text",
@@ -62,7 +63,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 92,
-        "text": "{{message}}"
+        "text": "{{message}}",
+        "group": "banner-1"
       },
       {
         "kind": "shape",
@@ -76,13 +78,19 @@
         "stroke": 3,
         "radius": 0,
         "y": 370,
-        "when": "bottomEdge"
+        "when": "bottomEdge",
+        "group": "banner-1"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "banner-1": {
+        "name": "HAPPY BIRTHDAY"
+      }
     }
   }
 }

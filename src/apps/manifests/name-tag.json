@@ -43,7 +43,8 @@
         "fill": "solid",
         "stroke": 0,
         "radius": 0,
-        "y": 0
+        "y": 0,
+        "group": "name-tag-2"
       },
       {
         "kind": "text",
@@ -60,7 +61,8 @@
         "lineHeight": 1.1,
         "letterSpacing": 0,
         "y": 14,
-        "text": "{{greeting}}"
+        "text": "{{greeting}}",
+        "group": "name-tag-2"
       },
       {
         "kind": "text",
@@ -77,7 +79,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 60,
-        "text": "{{subtitle}}"
+        "text": "{{subtitle}}",
+        "group": "name-tag-2"
       },
       {
         "kind": "shape",
@@ -90,7 +93,8 @@
         "fill": "none",
         "stroke": 6,
         "radius": 0,
-        "y": 0
+        "y": 0,
+        "group": "name-tag-1"
       },
       {
         "kind": "text",
@@ -107,13 +111,25 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 140,
-        "text": "{{name}}"
+        "text": "{{name}}",
+        "group": "name-tag-3"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "name-tag-1": {
+        "name": "Frame and background"
+      },
+      "name-tag-2": {
+        "name": "HELLO"
+      },
+      "name-tag-3": {
+        "name": "Your Name"
+      }
     }
   }
 }

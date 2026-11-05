@@ -48,7 +48,8 @@
         "gamma": 1,
         "threshold": 128,
         "y": 0,
-        "frame": "polaroid"
+        "frame": "polaroid",
+        "group": "photo-1"
       },
       {
         "kind": "text",
@@ -65,7 +66,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 392,
-        "text": "{{caption}}"
+        "text": "{{caption}}",
+        "group": "photo-1"
       },
       {
         "kind": "text",
@@ -83,13 +85,19 @@
         "letterSpacing": 0,
         "y": 438,
         "text": "{{date}}",
-        "when": "show_date"
+        "when": "show_date",
+        "group": "photo-1"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "photo-1": {
+        "name": "Best day ever"
+      }
     }
   }
 }

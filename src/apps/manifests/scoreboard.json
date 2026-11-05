@@ -93,7 +93,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 16,
-        "text": "{{game}}"
+        "text": "{{game}}",
+        "group": "scoreboard-1"
       },
       {
         "kind": "text",
@@ -110,7 +111,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 64,
-        "text": "{date}  ROUND: {{round}}"
+        "text": "{date}  ROUND: {{round}}",
+        "group": "scoreboard-1"
       },
       {
         "kind": "shape",
@@ -123,7 +125,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 104
+        "y": 104,
+        "group": "scoreboard-1"
       },
       {
         "kind": "text",
@@ -140,7 +143,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 120,
-        "text": "PLAYER                   PTS"
+        "text": "PLAYER                   PTS",
+        "group": "scoreboard-2"
       },
       {
         "kind": "text",
@@ -157,7 +161,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 156,
-        "text": "{{players}}"
+        "text": "{{players}}",
+        "group": "scoreboard-2"
       },
       {
         "kind": "shape",
@@ -170,7 +175,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 352
+        "y": 352,
+        "group": "scoreboard-2"
       },
       {
         "kind": "text",
@@ -187,7 +193,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 368,
-        "text": "TOTAL"
+        "text": "TOTAL",
+        "group": "scoreboard-3"
       },
       {
         "kind": "text",
@@ -204,7 +211,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 368,
-        "text": "{{sum:players.points}}"
+        "text": "{{sum:players.points}}",
+        "group": "scoreboard-3"
       },
       {
         "kind": "shape",
@@ -217,7 +225,8 @@
         "fill": "none",
         "stroke": 3,
         "radius": 0,
-        "y": 416
+        "y": 416,
+        "group": "scoreboard-3"
       },
       {
         "kind": "text",
@@ -234,7 +243,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 426,
-        "text": "WINNER"
+        "text": "WINNER",
+        "group": "scoreboard-3"
       },
       {
         "kind": "text",
@@ -251,7 +261,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 458,
-        "text": "{{winner}}"
+        "text": "{{winner}}",
+        "group": "scoreboard-3"
       },
       {
         "kind": "text",
@@ -269,13 +280,25 @@
         "letterSpacing": 0,
         "y": 532,
         "text": "{{note}}",
-        "when": "note"
+        "when": "note",
+        "group": "scoreboard-3"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "scoreboard-1": {
+        "name": "GAME NIGHT"
+      },
+      "scoreboard-2": {
+        "name": "PLAYER PTS"
+      },
+      "scoreboard-3": {
+        "name": "TOTAL"
+      }
     }
   }
 }

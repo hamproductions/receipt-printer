@@ -1,6 +1,7 @@
 import { createElement, docSize, type Doc, type Element, type ElementKind, type PrintSettings } from './doc';
 import { allFonts } from './fonts';
 import { APPS, buildApp, findApp } from './apps/registry';
+import { fieldsOf } from './prepare';
 import type { AppValues } from './apps/types';
 import { TOKEN_HELP } from './tokens';
 import { appLink, shareLink } from './deeplink';
@@ -133,13 +134,12 @@ export function buildAgentTools(api: () => AgentApi): Tool[] {
       description: 'Change field values of the current preset app (see inkless_get_design for the app id and inkless_list_presets for its fields). One undo step.',
       inputSchema: { type: 'object', properties: { values: { type: 'object' } }, required: ['values'] },
       execute: ({ values }) => {
-        const current = api().doc.app;
-        const app = current ? findApp(current.id) : null;
-        if (!current || !app) {
-          return failure('The current design is not a preset app.');
+        const fields = fieldsOf(api().doc);
+        if (!fields.length) {
+          return failure('The current design has no fields.');
         }
-        const checked = checkValues(app.fields, values);
-        api().update((doc) => (doc.app ? { ...doc, app: { ...doc.app, values: { ...doc.app.values, ...checked } } } : doc));
+        const checked = checkValues(fields, values);
+        api().update((doc) => ({ ...doc, app: { ...(doc.app ?? {}), values: { ...(doc.app?.values ?? {}), ...checked } } }));
         return text(`Updated ${Object.keys(checked).join(', ')}.`);
       }
     },
@@ -151,7 +151,7 @@ export function buildAgentTools(api: () => AgentApi): Tool[] {
       execute: async ({ kind }) => {
         const { doc } = api();
         if (kind === 'preset') {
-          return doc.app ? text(appLink(doc.app.id, doc.app.values)) : failure('The current design is not a preset app.');
+          return doc.app?.id ? text(appLink(doc.app.id, doc.app.values)) : failure('The current design is not a preset app.');
         }
         const result = await shareLink(doc);
         return text(result.droppedPhotos ? `${result.url}\n(Photos were left out to keep the link short.)` : result.url);

@@ -44,7 +44,8 @@
         "fill": "dots",
         "stroke": 0,
         "radius": 0,
-        "y": 0
+        "y": 0,
+        "group": "gift-tag-1"
       },
       {
         "kind": "shape",
@@ -57,7 +58,8 @@
         "fill": "solid",
         "stroke": 0,
         "radius": 0,
-        "y": 24
+        "y": 24,
+        "group": "gift-tag-1"
       },
       {
         "kind": "shape",
@@ -70,7 +72,8 @@
         "fill": "none",
         "stroke": 4,
         "radius": 0,
-        "y": 24
+        "y": 24,
+        "group": "gift-tag-1"
       },
       {
         "kind": "text",
@@ -87,7 +90,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 48,
-        "text": "{{title}}"
+        "text": "{{title}}",
+        "group": "gift-tag-2"
       },
       {
         "kind": "text",
@@ -104,13 +108,22 @@
         "lineHeight": 1.5,
         "letterSpacing": 0,
         "y": 132,
-        "text": "To: {{to}}\nFrom: {{from}}"
+        "text": "To: {{to}}\nFrom: {{from}}",
+        "group": "gift-tag-2"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "gift-tag-1": {
+        "name": "Frame and background"
+      },
+      "gift-tag-2": {
+        "name": "For you"
+      }
     }
   }
 }

@@ -4,32 +4,38 @@ import { DocInspector, ElementInspector } from './components/Inspector';
 import { BLOCKS, Palette, type Block } from './components/Palette';
 import { PresetDrawer } from './components/PresetDrawer';
 import { Layers } from './components/Layers';
-import { MultiInspector, type AlignMode } from './components/MultiInspector';
+import { EditorToolbar } from './components/EditorToolbar';
+import { PrinterDialog } from './components/PrinterDialog';
+import { MultiInspector, type AlignMode, type SectionInfo, type SectionStyle } from './components/MultiInspector';
 import { Stage, type Magnet, type Patch, type PatchSet } from './components/Stage';
-import { cloneElement, createElement, docSize, PAPER_DOTS, type Doc, type Element, type ImageElement, type TextElement } from './doc';
-import { addCustomFont, ensureFonts } from './fonts';
+import { cloneElement, createElement, docSize, newId, PAPER_DOTS, type Doc, type Element, type ImageElement, type TextElement } from './doc';
+import { addCustomFont, allFonts, ensureFonts } from './fonts';
 import { buildAgentTools, type AgentApi } from './agentTools';
 import { useHistory } from './history';
 import { loadCurrent, loadPrinted, loadShelf, parseDocFile, recordPrinted, saveCurrent, savePrinted, saveShelf, type PrintedItem, type ShelfItem } from './persistence';
-import { appTokens, fontSpecs, layOut, loadImages } from './prepare';
-import { defaults, expandBindings } from './apps/bindings';
-import { findApp } from './apps/registry';
+import { appTokens, fieldsOf, fontSpecs, layOut, loadImages } from './prepare';
+import { defaults, expandBindings, guessField, isMissing, placeholderKeys } from './apps/bindings';
+import { buildApp, findApp, saveTemplates, templateFrom, userTemplates } from './apps/registry';
 import { AppPanel } from './components/AppPanel';
 import { PRESETS } from './presets';
-import type { TokenContext } from './tokens';
+import { expandTokens, type TokenContext } from './tokens';
+import { checkLayout } from './check';
+import { buildSection, SECTION_GAP, stackRows, type SectionId } from './sections';
 import { registerTools } from './webmcp';
 import { appLink, readDeepLink, shareLink } from './deeplink';
-import { bytes, connect, encode, loadSpeed, MAX_PRINT_ROWS, saveSpeed, send, SPEEDS, supported, testPage, type Connection, type Speed } from './printer';
-import { barcodeError, frameInset, imageAspect, imageSize, textInkSpan, wholePixelSize, inkCoverage, invalidateLayers, loadImage, renderDoc } from './render';
+import { bytes, connect, encode, loadSpeed, MAX_PRINT_ROWS, saveSpeed, send, testPage, type Connection, type Speed } from './printer';
+import { barcodeError, fitTextHeight, frameInset, imageAspect, imageSize, textClipped, textInkSpan, wholePixelSize, inkCoverage, invalidateLayers, loadImage, renderDoc } from './render';
+import { Tabs } from '@ark-ui/react/tabs';
+import { Button } from './components/ui/button';
+import { cx } from '../styled-system/css';
+import { appStyles as styles } from './app.styles';
 
 type Status = { kind: 'idle' | 'busy' | 'error' | 'done'; message: string };
 type Panel = 'blocks' | 'paper' | 'edit';
 
-const CONNECTIONS: { value: Connection; label: string; detail: string }[] = [
-  { value: 'bluetooth', label: 'Bluetooth', detail: 'No pairing needed. Turn the printer on and keep it close.' },
-  { value: 'usb', label: 'USB cable', detail: 'For printers that show up as a USB printer.' },
-  { value: 'serial', label: 'Serial port', detail: 'Printers paired with this computer, or USB serial adapters.' }
-];
+function isControlEvent(event: KeyboardEvent) {
+  return event.defaultPrevented || (event.target instanceof Element && !!event.target.closest('button, input, textarea, select, [contenteditable], [data-scope]'));
+}
 
 function download(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob);
@@ -94,15 +100,16 @@ function readImageFile(file: File) {
 }
 
 function detachApp(doc: Doc, tokens: TokenContext): Doc {
-  const shown = layOut(doc, tokens).elements.map((element) => element.id);
+  const laid = layOut(doc, tokens);
   const bind = (value: string) => (tokens.values && tokens.fields ? expandBindings(value, tokens.values, tokens.fields) : value);
   return {
     ...doc,
     app: undefined,
-    elements: doc.elements
-      .filter((element) => shown.includes(element.id))
+    fields: undefined,
+    repeats: undefined,
+    elements: laid.elements
       .map((element) => {
-        const { when: _when, ...rest } = element;
+        const { when: _when, ...rest } = { ...element, locked: doc.elements.some((source) => source.id === element.id) ? element.locked : false };
         if (rest.kind === 'text') {
           return { ...rest, text: bind(rest.text) } as Element;
         }
@@ -167,7 +174,6 @@ export function App() {
   const [feeding, setFeeding] = useState<number | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
-  const [showAllDevices, setShowAllDevices] = useState(false);
   const [shelf, setShelf] = useState<ShelfItem[]>(() => loadShelf());
   const [printed, setPrinted] = useState<PrintedItem[]>(() => loadPrinted());
   const [speed, setSpeed] = useState<Speed>(() => loadSpeed());
@@ -180,6 +186,8 @@ export function App() {
     }
   });
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
+  const [leftTab, setLeftTab] = useState<'add' | 'layers'>('add');
+  const [listHover, setListHover] = useState<string[] | null>(null);
   const [ditherNew, setDitherNew] = useState(() => {
     try {
       return localStorage.getItem('inkless:dither-new') === 'on';
@@ -194,6 +202,8 @@ export function App() {
   const [panel, setPanel] = useState<Panel>('paper');
   const [zoom, setZoom] = useState<number | null>(null);
   const [matWidth, setMatWidth] = useState(600);
+  const [matHeight, setMatHeight] = useState(600);
+  const [lastSend, setLastSend] = useState<{ at: Date; bytes: number; copies: number } | null>(null);
   const [saveWarning, setSaveWarning] = useState(false);
   const matRef = useRef<HTMLDivElement>(null);
   const imageInput = useRef<HTMLInputElement>(null);
@@ -203,6 +213,7 @@ export function App() {
   const abort = useRef<AbortController | null>(null);
   const longConfirmed = useRef(false);
   const printAfterConnect = useRef(false);
+  const issuesConfirmed = useRef(false);
   const [link, setLink] = useState<string | null>(null);
 
   const tokens = useMemo(() => appTokens(doc, { seed, copy: 1, now }), [doc, seed, now]);
@@ -212,6 +223,24 @@ export function App() {
   const coverage = useMemo(() => inkCoverage(output), [output]);
   const spans = useMemo(() => Object.fromEntries(laid.elements.filter((element) => element.kind === 'text').map((element) => [element.id, textInkSpan(element as TextElement, tokens)])), [laid, tokens]);
   const selected = laid.elements.find((element) => element.id === selectedId) ?? null;
+  const appManifest = doc.app?.id ? findApp(doc.app.id) : null;
+  const allFields = useMemo(() => fieldsOf(doc), [doc]);
+  const placeholders = useMemo(() => {
+    const known = new Set(allFields.map((field) => field.key));
+    return placeholderKeys(doc.elements.flatMap((element) => (element.kind === 'text' ? [element.text] : element.kind === 'qr' || element.kind === 'barcode' ? [element.data] : []))).filter((key) => !known.has(key));
+  }, [doc, allFields]);
+  const issues = useMemo(() => checkLayout(laid, size, tokens), [laid, size.width, size.height, tokens]);
+  const emptyFields = useMemo(
+    () =>
+      laid.elements
+        .filter((element): element is TextElement => element.kind === 'text' && element.text.includes('{{') && !expandTokens(element.text, tokens).trim())
+        .map((element) => {
+          const key = element.text.match(/\{\{\s*(?:[a-z]+:)?([A-Za-z0-9_]+)/)?.[1];
+          return { id: element.id, label: allFields.find((field) => field.key === key)?.label ?? 'Empty field' };
+        }),
+    [laid, tokens, allFields]
+  );
+  const missingFields = allFields.filter((field) => field.required && isMissing(field, doc.app?.values ?? {}, doc.app?.blanks ?? [])).map((field) => field.key);
   const fitZoom = Math.max(0.3, Math.min(3, (matWidth - 72) / size.width));
   const scale = zoom ?? fitZoom;
   scaleRef.current = scale;
@@ -255,7 +284,10 @@ export function App() {
     if (!target) {
       return;
     }
-    const observer = new ResizeObserver(([entry]) => setMatWidth(entry.contentRect.width));
+    const observer = new ResizeObserver(([entry]) => {
+      setMatWidth(entry.contentRect.width);
+      setMatHeight(entry.contentRect.height);
+    });
     observer.observe(target);
     return () => observer.disconnect();
   }, []);
@@ -282,9 +314,8 @@ export function App() {
         mat.scrollTop = pointY * (after / before) - (event.clientY - rect.top);
       });
     };
-    const isTyping = (event: KeyboardEvent) => event.target instanceof Element && !!event.target.closest('input, textarea, select, [contenteditable]');
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.code === 'Space' && !isTyping(event)) {
+      if (event.code === 'Space' && !isControlEvent(event)) {
         event.preventDefault();
         spaceDown.current = true;
         setPanning(true);
@@ -316,18 +347,57 @@ export function App() {
 
   const flash = useCallback((message: string, kind: Status['kind'] = 'done') => setStatus({ kind, message }), []);
 
+  useEffect(() => {
+    if (status.kind === 'busy' || !status.message) {
+      return;
+    }
+    const timer = setTimeout(() => setStatus((current) => (current === status ? { kind: 'idle', message: '' } : current)), status.kind === 'error' ? 9000 : 5000);
+    return () => clearTimeout(timer);
+  }, [status]);
+
+  const tokensRef = useRef(tokens);
+  tokensRef.current = tokens;
+
+  const reflow = useCallback((before: Doc, after: Doc): Doc => {
+    if (after.landscape) {
+      return after;
+    }
+    const shifts: { bottom: number; delta: number; id: string }[] = [];
+    for (const next of after.elements) {
+      const previous = before.elements.find((element) => element.id === next.id);
+      if (!previous || previous === next || previous.kind !== 'text' || next.kind !== 'text' || next.text.includes('{{') || previous.y !== next.y) {
+        continue;
+      }
+      const oldHeight = fitTextHeight(previous, tokensRef.current);
+      const newHeight = fitTextHeight(next, tokensRef.current);
+      if (newHeight !== oldHeight) {
+        shifts.push({ id: next.id, bottom: previous.y + oldHeight, delta: newHeight - oldHeight });
+      }
+    }
+    if (!shifts.length) {
+      return after;
+    }
+    return {
+      ...after,
+      elements: after.elements.map((element) => {
+        const delta = shifts.reduce((total, shift) => (shift.id !== element.id && element.y >= shift.bottom - 1 ? total + shift.delta : total), 0);
+        return delta ? { ...element, y: Math.max(0, element.y + delta) } : element;
+      })
+    };
+  }, []);
+
   const updateMany = useCallback(
     (patches: PatchSet, group?: string) =>
       set((current) => {
         const byId = new Map(patches.map((item) => [item.id, item.patch]));
-        return { ...current, elements: current.elements.map((element) => (byId.has(element.id) ? ({ ...element, ...byId.get(element.id) } as Element) : element)) };
+        return reflow(current, { ...current, elements: current.elements.map((element) => (byId.has(element.id) ? ({ ...element, ...byId.get(element.id) } as Element) : element)) });
       }, group),
-    [set]
+    [set, reflow]
   );
 
   const updateElement = useCallback(
-    (id: string, patch: Patch, group?: string) => set((current) => ({ ...current, elements: current.elements.map((element) => (element.id === id ? ({ ...element, ...patch } as Element) : element)) }), group),
-    [set]
+    (id: string, patch: Patch, group?: string) => set((current) => reflow(current, { ...current, elements: current.elements.map((element) => (element.id === id ? ({ ...element, ...patch } as Element) : element)) }), group),
+    [set, reflow]
   );
 
   const insert = useCallback(
@@ -393,6 +463,148 @@ export function App() {
     } catch (error) {
       flash(errorMessage(error), 'error');
     }
+  }
+
+  const selectedGroup = (() => {
+    const groups = new Set(doc.elements.filter((element) => selectedIds.includes(element.id)).map((element) => element.group));
+    if (groups.size !== 1) {
+      return null;
+    }
+    const [group] = [...groups];
+    if (!group) {
+      return null;
+    }
+    const members = doc.elements.filter((element) => element.group === group).map((element) => element.id);
+    return members.length === selectedIds.length && members.length > 1 ? group : null;
+  })();
+
+  const sectionInfo: SectionInfo | null = (() => {
+    if (!selectedGroup) {
+      return null;
+    }
+    const members = doc.elements.filter((element) => element.group === selectedGroup);
+    const headingEl = members.find((element): element is TextElement => element.kind === 'text' && element.role === 'heading');
+    const bodyEl = members.find((element): element is TextElement => element.kind === 'text' && element.role !== 'heading') ?? headingEl;
+    const stored = doc.sections?.[selectedGroup];
+    return {
+      gap: stored?.gap ?? SECTION_GAP,
+      inset: stored?.inset ?? Math.max(0, Math.min(...members.map((element) => element.x))),
+      align: stored?.align ?? (bodyEl?.align ?? 'left'),
+      headingFont: headingEl?.font ?? 'Archivo Black',
+      headingSize: headingEl?.size ?? 28,
+      bodyFont: bodyEl?.font ?? 'Zen Kaku Gothic New',
+      bodySize: bodyEl?.size ?? 22
+    };
+  })();
+
+  function applySectionStyle(style: SectionStyle) {
+    if (!selectedGroup || !sectionInfo) {
+      return;
+    }
+    const fields = fieldsOf(doc);
+    const sample: TokenContext = { ...tokens, values: defaults(fields), blanks: [] };
+    const heightOf = (element: Element) => (element.kind === 'text' ? fitTextHeight(element, sample) : element.h);
+    set((current) => {
+      let elements = current.elements;
+      const sections = { ...(current.sections ?? {}) };
+      const groups = style.everywhere ? [...new Set(elements.map((element) => element.group).filter((group): group is string => !!group))] : [selectedGroup];
+      const ordered = groups.map((group) => ({ group, top: Math.min(...elements.filter((element) => element.group === group).map((element) => element.y)) })).sort((a, b) => a.top - b.top);
+      for (const { group } of ordered) {
+        const settings = { gap: sectionInfo.gap, inset: sectionInfo.inset, align: sectionInfo.align, ...(current.sections?.[group] ?? {}), ...(style.everywhere ? {} : { gap: style.gap ?? (current.sections?.[group]?.gap ?? sectionInfo.gap), inset: style.inset ?? (current.sections?.[group]?.inset ?? sectionInfo.inset), align: style.align ?? (current.sections?.[group]?.align ?? sectionInfo.align) }) };
+        sections[group] = settings;
+        const members = elements.filter((element) => element.group === group);
+        const oldBottom = Math.max(...members.map((element) => element.y + heightOf(element)));
+        const top = Math.min(...members.map((element) => element.y));
+        const iconRows = new Set(members.filter((element) => element.kind === 'shape' && element.shape === 'icon').map((element) => element.y));
+        const styled = members.map((element): Element => {
+          const span = PAPER_DOTS - settings.inset * 2;
+          if (element.kind === 'shape' && element.shape === 'icon') {
+            return { ...element, x: settings.inset };
+          }
+          if (element.kind === 'text') {
+            const beside = element.role === 'heading' && [...iconRows].some((y) => Math.abs(y - element.y) < element.size);
+            const font = element.role === 'heading' ? { font: style.headingFont ?? element.font, size: element.size === sectionInfo.headingSize || style.everywhere ? (style.headingSize ?? element.size) : element.size } : { font: style.bodyFont ?? element.font, size: element.size === sectionInfo.bodySize || style.everywhere ? (style.bodySize ?? element.size) : element.size };
+            return { ...element, ...font, align: beside ? element.align : settings.align, x: beside ? settings.inset + 48 : settings.inset, w: beside ? span - 48 : span };
+          }
+          if (element.kind === 'qr' || element.kind === 'barcode' || element.kind === 'image') {
+            const x = settings.align === 'left' ? settings.inset : settings.align === 'right' ? PAPER_DOTS - settings.inset - element.w : (PAPER_DOTS - element.w) / 2;
+            return { ...element, x: Math.round(x) };
+          }
+          return { ...element, x: settings.inset, w: span };
+        });
+        const sorted = [...styled].sort((a, b) => a.y - b.y);
+        const rows: Element[][] = [];
+        let rowBottom = -Infinity;
+        for (const element of sorted) {
+          if (!rows.length || element.y >= rowBottom - 1) {
+            rows.push([element]);
+            rowBottom = element.y + heightOf(element);
+          } else {
+            rows[rows.length - 1].push(element);
+            rowBottom = Math.max(rowBottom, element.y + heightOf(element));
+          }
+        }
+        const stacked = stackRows(rows, top, heightOf, settings.gap).elements;
+        const newBottom = Math.max(...stacked.map((element) => element.y + heightOf(element)));
+        const delta = newBottom - oldBottom;
+        const byId = new Map(stacked.map((element) => [element.id, element]));
+        elements = elements.map((element) => byId.get(element.id) ?? (element.group !== group && element.y >= oldBottom - 1 ? { ...element, y: element.y + delta } : element));
+      }
+      return { ...current, sections, elements };
+    });
+  }
+
+  function moveBlock(blockId: string, toIndex: number) {
+    const axis = doc.landscape ? 'x' : 'y';
+    const sample: TokenContext = { ...tokens, values: defaults(fieldsOf(doc)), blanks: [] };
+    const extent = (element: Element) => (axis === 'y' ? (element.kind === 'text' ? fitTextHeight(element, sample) : element.h) : element.w);
+    set((current) => {
+      const map = new Map<string, Element[]>();
+      for (const element of current.elements) {
+        const key = element.group ? `g:${element.group}` : `e:${element.id}`;
+        map.set(key, [...(map.get(key) ?? []), element]);
+      }
+      const blocks = [...map.entries()].map(([id, members]) => ({ id, members, start: Math.min(...members.map((element) => element[axis])), end: Math.max(...members.map((element) => element[axis] + extent(element))) })).sort((a, b) => a.start - b.start);
+      const from = blocks.findIndex((block) => block.id === blockId);
+      if (from < 0) {
+        return current;
+      }
+      const gaps = blocks.slice(1).map((block, index) => Math.max(8, block.start - blocks[index].end));
+      const gap = gaps.length ? Math.round(gaps.reduce((total, value) => total + value, 0) / gaps.length) : 16;
+      const order = [...blocks];
+      const [moved] = order.splice(from, 1);
+      order.splice(Math.max(0, Math.min(order.length, toIndex > from ? toIndex - 1 : toIndex)), 0, moved);
+      let cursor = blocks[0].start;
+      const shift = new Map<string, number>();
+      for (const block of order) {
+        shift.set(block.id, cursor - block.start);
+        cursor += block.end - block.start + gap;
+      }
+      return {
+        ...current,
+        elements: current.elements.map((element) => {
+          const delta = shift.get(element.group ? `g:${element.group}` : `e:${element.id}`) ?? 0;
+          return delta ? ({ ...element, [axis]: Math.round(element[axis] + delta) } as Element) : element;
+        })
+      };
+    });
+  }
+
+  function insertSection(id: SectionId) {
+    const section = buildSection(id);
+    const known = new Set(fieldsOf(doc).map((field) => field.key));
+    const added = section.fields.filter((field) => !known.has(field.key));
+    const nextFields = [...(doc.fields ?? []), ...added];
+    const nextValues = { ...defaults(added), ...(doc.app?.values ?? {}) };
+    const probe: Doc = { ...doc, fields: nextFields, app: { ...(doc.app ?? {}), values: nextValues } };
+    const probeTokens = appTokens(probe, { seed, copy: 1, now });
+    const bottom = laid.elements.reduce((max, element) => Math.max(max, element.y + element.h), 0);
+    const group = newId();
+    const { elements } = stackRows(section.rows, laid.elements.length ? bottom + 16 : 8, (element) => (element.kind === 'text' ? fitTextHeight(element, probeTokens) : element.h), SECTION_GAP, group);
+    set((current) => ({ ...current, fields: [...(current.fields ?? []), ...added.filter((field) => !(current.fields ?? []).some((item) => item.key === field.key))], app: { ...(current.app ?? {}), values: { ...defaults(added), ...(current.app?.values ?? {}) } }, elements: [...current.elements, ...elements] }));
+    revealId.current = elements[0].id;
+    setSelectedIds(elements.map((element) => element.id));
+    flash(`Added ${section.label}${added.length ? ` with ${added.length} new field${added.length === 1 ? '' : 's'}` : ''}.`);
   }
 
   function deleteSelected() {
@@ -501,7 +713,7 @@ export function App() {
 
   async function copyLink(kind: 'design' | 'app') {
     try {
-      const result = kind === 'app' && doc.app ? { url: appLink(doc.app.id, doc.app.values), droppedPhotos: false } : await shareLink(doc);
+      const result = kind === 'app' && doc.app?.id ? { url: appLink(doc.app.id, doc.app.values), droppedPhotos: false } : await shareLink(doc);
       setLink(result.url);
       const copied = await navigator.clipboard.writeText(result.url).then(
         () => true,
@@ -523,8 +735,7 @@ export function App() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      const target = event.target;
-      if ((target instanceof Element && target.closest('input, textarea, select, [contenteditable]')) || drawerOpen || connectOpen) {
+      if (isControlEvent(event) || drawerOpen || connectOpen) {
         return;
       }
       const mod = event.metaKey || event.ctrlKey;
@@ -599,7 +810,7 @@ export function App() {
     };
   });
 
-  async function connectPrinter(connection: Connection) {
+  async function connectPrinter(connection: Connection, showAllDevices: boolean) {
     setStatus({ kind: 'busy', message: 'Waiting for you to pick a printer' });
     try {
       const next = await connect(connection, () => {
@@ -639,6 +850,20 @@ export function App() {
   }
 
   async function print(target: Transport | null = printer): Promise<string> {
+    if (missingFields.length) {
+      const message = `Fill in before printing: ${allFields.filter((field) => missingFields.includes(field.key)).map((field) => field.label).join(', ')}. Or tick Leave blank to handwrite.`;
+      flash(message, 'error');
+      setSelectedIds([]);
+      setPanel('edit');
+      return message;
+    }
+    if (issues.length && !issuesConfirmed.current) {
+      issuesConfirmed.current = true;
+      const message = `Check before printing: ${issues[0].message}${issues.length > 1 ? ` (${issues.length} problems, listed under Check)` : ''} Press Print again to print anyway.`;
+      flash(message, 'error');
+      return message;
+    }
+    issuesConfirmed.current = false;
     if (!target) {
       printAfterConnect.current = true;
       setConnectOpen(true);
@@ -656,16 +881,20 @@ export function App() {
     abort.current = controller;
     const copies = doc.print.copies;
     setFeeding(0);
+    setLastSend(null);
+    let sentBytes = 0;
     try {
       for (let copy = 1; copy <= copies; copy += 1) {
-        setStatus({ kind: 'busy', message: copies > 1 ? `Printing copy ${copy} of ${copies}` : 'Printing' });
+        setStatus({ kind: 'busy', message: copies > 1 ? `Sending copy ${copy} of ${copies} to the printer` : 'Sending to the printer' });
         const copyTokens = appTokens(doc, { seed, copy, now: new Date() });
         const sheet = renderDoc(layOut(doc, copyTokens), copyTokens);
         const { parts } = encode(sheet, laid.landscape, laid.print);
         await send(target, parts, controller.signal, (ratio) => setFeeding((copy - 1 + ratio) / copies), speed);
+        sentBytes += parts.reduce((total, part) => total + part.length, 0);
       }
+      setLastSend({ at: new Date(), bytes: sentBytes, copies });
       setPrinted((items) => recordPrinted(items, { id: `${Date.now()}`, printedAt: Date.now(), copies, thumb: thumbnailOf(output), doc }));
-      const message = copies > 1 ? `Printed ${copies} copies.` : 'Printed. Tear against the edge.';
+      const message = `Sent ${copies > 1 ? `${copies} copies` : 'the design'} to the printer. The printer does not report back, so check that the paper came out.`;
       flash(message);
       setSeed((value) => value + copies);
       return message;
@@ -731,80 +960,69 @@ export function App() {
   const printLabel = feeding !== null ? 'Stop' : doc.print.copies > 1 ? `Print ${doc.print.copies}` : 'Print';
 
   return (
-    <div className="app" data-panel={panel}>
-      <header className="topbar">
-        <div className="brand">
-          <span className="wordmark">inkless</span>
-          <span className="doc-name">{doc.name || 'Untitled'}</span>
-        </div>
-        <div className="toolbar">
-          <button type="button" onClick={() => setDrawerOpen(true)}>
-            Presets
-          </button>
-          <button type="button" onClick={history.undo} disabled={!history.canUndo} aria-label="Undo">
-            Undo
-          </button>
-          <button type="button" onClick={history.redo} disabled={!history.canRedo} aria-label="Redo">
-            Redo
-          </button>
-          <div className="zoom" role="group" aria-label="Snapping">
-            {(['off', 'objects', 'grid'] as Magnet[]).map((value) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={magnet === value}
-                title={value === 'off' ? 'No snapping' : value === 'objects' ? 'Snap to paper edges, other items and guides' : 'Also snap to a 1 mm grid'}
-                onClick={() => {
-                  setMagnet(value);
-                  try {
-                    localStorage.setItem('inkless:magnet', value);
-                  } catch {
-                    return;
-                  }
-                }}
-              >
-                {value === 'off' ? 'Snap off' : value === 'objects' ? 'Snap' : 'Snap + mm'}
-              </button>
-            ))}
-          </div>
-          <div className="zoom" role="group" aria-label="Zoom">
-            <button type="button" onClick={() => setZoom(Math.max(0.3, +(scale / 1.25).toFixed(2)))} aria-label="Zoom out">
-              −
-            </button>
-            <button type="button" onClick={() => setZoom(null)} aria-pressed={zoom === null}>
-              {Math.round(scale * 100)}%
-            </button>
-            <button type="button" onClick={() => setZoom(Math.min(8, +(scale * 1.25).toFixed(2)))} aria-label="Zoom in">
-              +
-            </button>
-          </div>
-        </div>
-        <div className="print-cluster">
-          <button type="button" className={`printer-pill${printer ? ' is-on' : ''}`} onClick={() => setConnectOpen(true)}>
-            <span className="led" aria-hidden="true" />
-            {printer ? printer.deviceName ?? printer.label : 'Connect printer'}
-          </button>
-          <button type="button" className="print-button" onClick={() => (feeding !== null ? abort.current?.abort() : void print())} disabled={busy && feeding === null}>
-            {printLabel}
-          </button>
-        </div>
-      </header>
+    <div className={cx('app', styles.root)} data-panel={panel}>
+      <EditorToolbar
+        documentName={doc.name || 'Untitled'}
+        onPresets={() => setDrawerOpen(true)}
+        history={{ canUndo: history.canUndo, canRedo: history.canRedo, undo: history.undo, redo: history.redo }}
+        zoom={{ scale, value: zoom, wholeFit: Math.max(.3, Math.min(3, (matWidth - 72) / size.width, (matHeight - 90) / size.height)), dotScale: 1 / (window.devicePixelRatio || 1), onChange: setZoom }}
+        magnet={magnet}
+        onMagnetChange={(value) => {
+          setMagnet(value);
+          try {
+            localStorage.setItem('inkless:magnet', value);
+          } catch {
+            return;
+          }
+        }}
+        printerLabel={printer ? printer.deviceName ?? printer.label : null}
+        onConnect={() => setConnectOpen(true)}
+        printing={{
+          label: printLabel,
+          disabled: busy && feeding === null,
+          warning: saveWarning || (doc.print.printWidth ?? PAPER_DOTS) !== PAPER_DOTS,
+          message: saveWarning ? 'Not saved, storage full' : feeding !== null ? `Sending ${Math.round(feeding * 100)}%` : lastSend && printer ? `Sent at ${lastSend.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}, check the paper` : (doc.print.printWidth ?? PAPER_DOTS) !== PAPER_DOTS ? `Scaled to ${doc.print.printWidth} dots` : '',
+          onPrint: () => feeding !== null ? abort.current?.abort() : void print()
+        }}
+      />
 
-      <main className="workspace">
-        <aside className="side side-left">
-          <Palette onAdd={(block) => addBlock(block)} />
-          <Layers
-            elements={laid.elements}
-            selectedIds={selectedIds}
-            tokens={tokens}
-            onSelect={(id, additive) => {
-              revealId.current = id;
-              setSelectedIds((current) => (additive ? (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]) : [id]));
-            }}
-          />
+      <main className={styles.workspace}>
+        <aside className={cx('side side-left', styles.side, styles.left)}>
+          <Tabs.Root value={leftTab} onValueChange={({ value }) => setLeftTab(value as 'add' | 'layers')} lazyMount unmountOnExit>
+          <Tabs.List className={styles.tabs} aria-label="Left panel">
+            <Tabs.Trigger value="add">
+              Add
+            </Tabs.Trigger>
+            <Tabs.Trigger value="layers">
+              Layers <span className={styles.count}>{doc.elements.length}</span>
+            </Tabs.Trigger>
+          </Tabs.List>
+          <Tabs.Content value="add">
+            <Palette onAdd={(block) => addBlock(block)} onSection={insertSection} />
+          </Tabs.Content>
+          <Tabs.Content value="layers">
+            <Layers
+              elements={doc.elements}
+              selectedIds={selectedIds}
+              issueIds={issues.map((issue) => issue.id)}
+              tokens={tokens}
+              onSelect={(ids, additive) => {
+                revealId.current = ids[0];
+                setSelectedIds((current) => (additive ? (ids.every((id) => current.includes(id)) ? current.filter((id) => !ids.includes(id)) : [...new Set([...current, ...ids])]) : ids));
+                setPanel('edit');
+              }}
+              onHover={setListHover}
+              onPatch={(ids, patch) => set((current) => ({ ...current, elements: current.elements.map((element) => (ids.includes(element.id) ? ({ ...element, ...patch } as Element) : element)) }))}
+              onMoveBlock={moveBlock}
+              sectionNames={Object.fromEntries(Object.entries(doc.sections ?? {}).map(([group, value]) => [group, value.name]))}
+              onRenameSection={(group, name) => set((current) => ({ ...current, sections: { ...(current.sections ?? {}), [group]: { ...(current.sections?.[group] ?? {}), name } } }))}
+            />
+          </Tabs.Content>
+          </Tabs.Root>
         </aside>
         <div
-          className={`mat${panning ? ' is-panning' : ''}`}
+          className={cx('mat', styles.mat)}
+          data-panning={panning || undefined}
           ref={matRef}
           onPointerDownCapture={(event) => {
             if (event.button === 1 || (event.button === 0 && spaceDown.current)) {
@@ -843,6 +1061,10 @@ export function App() {
             zoom={scale}
             selectedIds={selectedIds}
             spans={spans}
+            issueIds={[...new Set(issues.map((issue) => issue.id))]}
+            hoverFromList={listHover}
+            emptyFields={emptyFields}
+            cutIds={[...new Set(issues.filter((issue) => issue.kind === 'bounds').map((issue) => issue.id))]}
             magnet={magnet}
             rulerGuides={doc.guides ?? { x: [], y: [] }}
             onGuides={(guides) => set((current) => ({ ...current, guides }))}
@@ -884,22 +1106,36 @@ export function App() {
             }}
           />
           {cursor && (
-            <div className="readout" aria-live="off">
+            <div className={styles.readout} aria-live="off">
               x {Math.round(cursor.x)}, y {Math.round(cursor.y)} dots ({(cursor.x / 8).toFixed(1)}, {(cursor.y / 8).toFixed(1)} mm)
             </div>
           )}
           {laid.elements.length === 0 && (
-            <div className="empty-paper">
+            <div className={styles.empty}>
               <p>Empty roll. Drag a block onto the paper, drop a photo, or</p>
-              <button type="button" onClick={() => setDrawerOpen(true)}>
+              <Button type="button" onClick={() => setDrawerOpen(true)}>
                 pick a preset
-              </button>
+              </Button>
             </div>
           )}
         </div>
-        <aside className="side side-right">
+        <aside className={cx('side side-right', styles.side, styles.right)}>
           {selectedIds.length > 1 ? (
-            <MultiInspector count={selectedIds.length} onAlign={align} onLayer={layer} onDuplicate={duplicateSelected} onDelete={deleteSelected} />
+            <MultiInspector
+              count={selectedIds.length}
+              section={sectionInfo}
+              fonts={allFonts().map((font) => font.family)}
+              onSection={applySectionStyle}
+              onGroup={() => {
+                const group = newId();
+                set((current) => ({ ...current, elements: current.elements.map((element) => (selectedIds.includes(element.id) ? { ...element, group } : element)) }));
+              }}
+              onUngroup={() => set((current) => ({ ...current, elements: current.elements.map((element) => (selectedIds.includes(element.id) ? { ...element, group: undefined } : element)) }))}
+              onAlign={align}
+              onLayer={layer}
+              onDuplicate={duplicateSelected}
+              onDelete={deleteSelected}
+            />
           ) : selected ? (
             <ElementInspector
               element={doc.elements.find((element) => element.id === selected.id)!}
@@ -930,6 +1166,8 @@ export function App() {
               cropping={croppingId === selected.id}
               onCrop={(on) => setCroppingId(on ? selected.id : null)}
               barcodeError={selected.kind === 'barcode' ? barcodeError(selected, tokens) : null}
+              laidHeight={selected.h}
+              clipped={selected.kind === 'text' && textClipped(selected, tokens)}
               paperWidth={doc.landscape ? size.width : PAPER_DOTS}
               onDuplicate={duplicateSelected}
               onDelete={deleteSelected}
@@ -937,11 +1175,30 @@ export function App() {
             />
           ) : (
             <>
-              {doc.app && findApp(doc.app.id) && (
+              {(allFields.length > 0 || placeholders.length > 0 || appManifest) && (
                 <AppPanel
-                  manifest={findApp(doc.app.id)!}
-                  values={doc.app.values}
-                  onChange={(key, value, group) => set((current) => (current.app ? { ...current, app: { ...current.app, values: { ...current.app.values, [key]: value } } } : current), group)}
+                  manifest={appManifest}
+                  fields={allFields}
+                  customKeys={(doc.fields ?? []).map((field) => field.key)}
+                  values={doc.app?.values ?? {}}
+                  blanks={doc.app?.blanks ?? []}
+                  missing={missingFields}
+                  placeholders={placeholders}
+                  templateName={appManifest?.user ? appManifest.name : null}
+                  onChange={(key, value, group) => set((current) => ({ ...current, app: { ...(current.app ?? { values: {} }), values: { ...(current.app?.values ?? {}), [key]: value } } }), group)}
+                  onBlank={(key, blank) =>
+                    set((current) => {
+                      const blanks = new Set(current.app?.blanks ?? []);
+                      if (blank) {
+                        blanks.add(key);
+                      } else {
+                        blanks.delete(key);
+                      }
+                      return { ...current, app: { ...(current.app ?? { values: {} }), blanks: [...blanks] } };
+                    })
+                  }
+                  onFields={(fields) => set((current) => ({ ...current, fields }))}
+                  onCreateFields={(keys) => set((current) => ({ ...current, fields: [...(current.fields ?? []), ...keys.map((key) => guessField(key))] }))}
                   onReset={() =>
                     set((current) => {
                       const app = current.app ? findApp(current.app.id) : null;
@@ -957,14 +1214,42 @@ export function App() {
                         const sample = samples[index++];
                         return sample && sample.kind === 'image' ? { ...element, src: sample.src, trim: sample.trim, cropZoom: 1, cropX: 0, cropY: 0 } : element;
                       });
-                      return { ...current, elements, app: { ...current.app, values: defaults(app.fields) } };
+                      return { ...current, elements, app: { ...current.app, values: defaults(app.fields), blanks: [] } };
                     })
                   }
                   onDetach={() => set((current) => detachApp(current, tokens))}
                   onImport={(imported) => set((current) => (current.app ? { ...current, app: { ...current.app, values: { ...current.app.values, ...imported } } } : current))}
+                  onSaveTemplate={(name) => {
+                    const template = templateFrom(doc, name, allFields);
+                    if (saveTemplates([...userTemplates(), template])) {
+                      set((current) => ({ ...current, name, fields: template.fields, app: { id: template.id, values: current.app?.values ?? {}, blanks: current.app?.blanks } }));
+                      flash(`Saved the template “${name}”. Find it under Presets, My templates.`);
+                    } else {
+                      flash('Browser storage is full, so the template was not saved.', 'error');
+                    }
+                  }}
+                  onUpdateTemplate={() => {
+                    if (!appManifest?.user) {
+                      return;
+                    }
+                    const template = templateFrom(doc, appManifest.name, allFields, appManifest.id);
+                    if (saveTemplates(userTemplates().map((item) => (item.id === template.id ? template : item)))) {
+                      flash(`Updated the template “${appManifest.name}”.`);
+                    } else {
+                      flash('Browser storage is full, so the template was not updated.', 'error');
+                    }
+                  }}
+                  onNewCopy={() => {
+                    if (appManifest?.user) {
+                      loadDoc(buildApp(appManifest));
+                      flash('New guest copy. Fill in this guest’s details.');
+                    }
+                  }}
                 />
               )}
             <DocInspector
+              issues={issues}
+              onSelectIssue={(id) => setSelectedIds([id])}
               ditherNew={ditherNew}
               onDitherNew={(on) => {
                 setDitherNew(on);
@@ -995,15 +1280,15 @@ export function App() {
         </aside>
       </main>
 
-      <nav className="mobile-tabs" aria-label="Panels">
+      <nav className={styles.mobile} aria-label="Panels">
         {(['blocks', 'paper', 'edit'] as Panel[]).map((value) => (
-          <button key={value} type="button" aria-pressed={panel === value} onClick={() => setPanel(value)}>
+          <Button key={value} type="button" aria-pressed={panel === value} onClick={() => setPanel(value)}>
             {value === 'blocks' ? 'Blocks' : value === 'paper' ? 'Paper' : selected ? 'Edit' : 'Settings'}
-          </button>
+          </Button>
         ))}
       </nav>
 
-      <div className={`toast toast-${status.kind}`} role="status" aria-live="polite">
+      <div className={styles.toast} data-error={status.kind === 'error' || undefined} role="status" aria-live="polite">
         {status.message}
         {saveWarning && <span> This design is too large to autosave. Export it to keep it.</span>}
       </div>
@@ -1022,75 +1307,18 @@ export function App() {
         }}
       />
 
-      {connectOpen && (
-        <div className="drawer-backdrop" onPointerDown={() => setConnectOpen(false)} onKeyDown={(event) => event.key === 'Escape' && setConnectOpen(false)}>
-          <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="connect-title" onPointerDown={(event) => event.stopPropagation()}>
-            <div className="drawer-head">
-              <h2 id="connect-title">Printer</h2>
-              <button type="button" onClick={() => setConnectOpen(false)} autoFocus>
-                Close
-              </button>
-            </div>
-            {printer ? (
-              <div className="connected">
-                <p>
-                  Connected to <strong>{printer.deviceName ?? printer.label}</strong>.
-                </p>
-                <div className="button-row">
-                  <button type="button" onClick={runTestPage} disabled={busy}>
-                    Print a text test page
-                  </button>
-                  <button type="button" className="danger" onClick={disconnectPrinter}>
-                    Disconnect
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <p className="panel-note">58 mm ESC/POS printers (PT-210 class and similar). Needs desktop or Android Chrome or Edge.</p>
-                <ul className="connections">
-                  {CONNECTIONS.map((option) => {
-                    const available = supported(option.value);
-                    return (
-                      <li key={option.value}>
-                        <button type="button" onClick={() => void connectPrinter(option.value)} disabled={!available || busy}>
-                          <strong>{option.label}</strong>
-                          <span>{available ? option.detail : 'This browser cannot use this connection.'}</span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-                <label className="field toggle">
-                  <input type="checkbox" checked={showAllDevices} onChange={(event) => setShowAllDevices(event.target.checked)} />
-                  <span>Printer missing from the Bluetooth list? Show every nearby device.</span>
-                </label>
-              </>
-            )}
-            <fieldset className="field speed">
-              <legend className="field-label">Sending speed</legend>
-              {(Object.keys(SPEEDS) as Speed[]).map((value) => (
-                <label key={value} className="toggle">
-                  <input
-                    type="radio"
-                    name="speed"
-                    checked={speed === value}
-                    onChange={() => {
-                      setSpeed(value);
-                      saveSpeed(value);
-                    }}
-                  />
-                  <span>
-                    <strong>{SPEEDS[value].label}</strong> {SPEEDS[value].detail}
-                  </span>
-                </label>
-              ))}
-              <p className="panel-note">If a print stops halfway, comes out garbled or skips lines, step down a speed.</p>
-            </fieldset>
-            {status.message && <p className={`dialog-status status-${status.kind}`}>{status.message}</p>}
-          </div>
-        </div>
-      )}
+      <PrinterDialog
+        open={connectOpen}
+        onClose={() => setConnectOpen(false)}
+        printer={printer}
+        busy={busy}
+        status={status}
+        speed={speed}
+        onSpeed={(value) => { setSpeed(value); saveSpeed(value); }}
+        onConnect={(connection, showAllDevices) => void connectPrinter(connection, showAllDevices)}
+        onDisconnect={() => void disconnectPrinter()}
+        onTest={() => void runTestPage()}
+      />
 
       <input
         ref={imageInput}

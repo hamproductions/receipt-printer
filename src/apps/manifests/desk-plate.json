@@ -53,7 +53,8 @@
         "fill": "none",
         "stroke": 3,
         "radius": 12,
-        "when": "frame"
+        "when": "frame",
+        "group": "desk-plate-1"
       },
       {
         "kind": "text",
@@ -70,7 +71,8 @@
         "align": "center",
         "lineHeight": 1,
         "letterSpacing": 0,
-        "text": "{{name}}"
+        "text": "{{name}}",
+        "group": "desk-plate-2"
       },
       {
         "kind": "shape",
@@ -83,7 +85,8 @@
         "shape": "line",
         "fill": "solid",
         "stroke": 3,
-        "radius": 0
+        "radius": 0,
+        "group": "desk-plate-2"
       },
       {
         "kind": "text",
@@ -100,7 +103,8 @@
         "align": "center",
         "lineHeight": 1.2,
         "letterSpacing": 0,
-        "text": "{{title}}"
+        "text": "{{title}}",
+        "group": "desk-plate-2"
       },
       {
         "kind": "text",
@@ -118,7 +122,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "text": "{{team}}",
-        "when": "team"
+        "when": "team",
+        "group": "desk-plate-2"
       },
       {
         "kind": "shape",
@@ -131,7 +136,8 @@
         "shape": "dashes",
         "fill": "solid",
         "stroke": 2,
-        "radius": 0
+        "radius": 0,
+        "group": "desk-plate-2"
       },
       {
         "kind": "shape",
@@ -145,7 +151,8 @@
         "fill": "none",
         "stroke": 3,
         "radius": 12,
-        "when": "frame"
+        "when": "frame",
+        "group": "desk-plate-1"
       },
       {
         "kind": "text",
@@ -162,7 +169,8 @@
         "align": "center",
         "lineHeight": 1,
         "letterSpacing": 0,
-        "text": "{{name}}"
+        "text": "{{name}}",
+        "group": "desk-plate-3"
       },
       {
         "kind": "shape",
@@ -175,7 +183,8 @@
         "shape": "line",
         "fill": "solid",
         "stroke": 3,
-        "radius": 0
+        "radius": 0,
+        "group": "desk-plate-3"
       },
       {
         "kind": "text",
@@ -192,7 +201,8 @@
         "align": "center",
         "lineHeight": 1.2,
         "letterSpacing": 0,
-        "text": "{{title}}"
+        "text": "{{title}}",
+        "group": "desk-plate-3"
       },
       {
         "kind": "text",
@@ -210,13 +220,25 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "text": "{{team}}",
-        "when": "team"
+        "when": "team",
+        "group": "desk-plate-3"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "desk-plate-1": {
+        "name": "Frame and background"
+      },
+      "desk-plate-2": {
+        "name": "Design Team"
+      },
+      "desk-plate-3": {
+        "name": "ALEX MORGAN"
+      }
     }
   }
 }

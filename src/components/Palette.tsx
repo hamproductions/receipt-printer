@@ -1,5 +1,18 @@
 import { createElement, type Element } from '../doc';
+import { useEffect, useState } from 'react';
+import { defaults } from '../apps/bindings';
+import type { Field } from '../apps/types';
+import { DEFAULT_PRINT, type Doc } from '../doc';
+import { ensureFonts } from '../fonts';
+import { fontSpecs, layOut } from '../prepare';
+import { fitTextHeight, invalidateLayers, renderDoc } from '../render';
+import { buildSection, SECTIONS, stackRows, type SectionId } from '../sections';
+import type { TokenContext } from '../tokens';
 import { PALETTE_MIME } from './Stage';
+import { Button } from './ui/button';
+import { paletteStyles } from './palette.styles';
+import { panelStyles } from './panel.styles';
+import { cx } from '../../styled-system/css';
 
 export type Block = { id: string; label: string; glyph: string; build: (x: number, y: number) => Element };
 
@@ -25,19 +38,61 @@ export const BLOCKS: Block[] = [
   shapeBlock('circle', 'Circle', '○', { shape: 'ellipse', w: 120, h: 120, fill: 'none', stroke: 4 })
 ];
 
-type Props = { onAdd: (block: Block) => void };
+type Props = { onAdd: (block: Block) => void; onSection: (id: SectionId) => void };
 
-export function Palette({ onAdd }: Props) {
+function previewOf(id: SectionId) {
+  const section = buildSection(id);
+  const sample = section.fields.map((field) => {
+    if (field.key === 'guest_name') {
+      return { ...field, default: 'Guest name' };
+    }
+    if (field.type === 'date') {
+      return { ...field, default: '2026-12-20' };
+    }
+    if (field.key === 'wifi_name') {
+      return { ...field, default: 'Network' };
+    }
+    if (field.type === 'password') {
+      return { ...field, default: field.key === 'door_pin' ? '1234' : 'password' };
+    }
+    if (field.key === 'room_number') {
+      return { ...field, default: '101' };
+    }
+    return field;
+  }) as Field[];
+  const tokens: TokenContext = { seed: 1, copy: 1, now: new Date(), values: defaults(sample), fields: sample, blanks: [] };
+  const { elements, bottom } = stackRows(section.rows, 4, (element) => (element.kind === 'text' ? fitTextHeight(element, tokens) : element.h));
+  const doc: Doc = { version: 1, name: section.label, landscape: false, length: Math.ceil(bottom + 4), autoLength: false, elements, print: { ...DEFAULT_PRINT } };
+  return { doc, tokens, specs: fontSpecs({ ...doc, fields: sample, app: { values: defaults(sample) } }) };
+}
+
+export function Palette({ onAdd, onSection }: Props) {
+  const [previews, setPreviews] = useState<Partial<Record<SectionId, string>>>({});
+  useEffect(() => {
+    let cancelled = false;
+    const built = SECTIONS.map((section) => ({ id: section.id, ...previewOf(section.id) }));
+    ensureFonts(built.flatMap((item) => item.specs)).then(() => {
+      if (cancelled) {
+        return;
+      }
+      invalidateLayers();
+      setPreviews(Object.fromEntries(built.map((item) => [item.id, renderDoc(layOut(item.doc, item.tokens), item.tokens).toDataURL()])));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
-    <section className="palette" aria-label="Blocks">
-      <h2 className="panel-title">Blocks</h2>
-      <p className="panel-note">Drag onto the paper, or click to add.</p>
-      <ul className="block-list">
+    <section aria-label="Blocks">
+      <h2 className={panelStyles.heading}>Blocks</h2>
+      <p className={panelStyles.note}>Click to add, or drag onto the paper.</p>
+      <ul className={paletteStyles.blocks}>
         {BLOCKS.map((block) => (
           <li key={block.id}>
-            <button
+            <Button
               type="button"
-              className="block"
+              className={paletteStyles.block}
               draggable
               onDragStart={(event) => {
                 event.dataTransfer.setData(PALETTE_MIME, block.id);
@@ -45,11 +100,28 @@ export function Palette({ onAdd }: Props) {
               }}
               onClick={() => onAdd(block)}
             >
-              <span className="block-glyph" aria-hidden="true">
+              <span className={paletteStyles.glyph} aria-hidden="true">
                 {block.glyph}
               </span>
               <span>{block.label}</span>
-            </button>
+            </Button>
+          </li>
+        ))}
+      </ul>
+      <h2 className={cx(panelStyles.heading, paletteStyles.subtitle)}>Ready-made blocks</h2>
+      <p className={panelStyles.note}>Added at the bottom, with their own fields.</p>
+      <ul className={paletteStyles.sections}>
+        {SECTIONS.map((section) => (
+          <li key={section.id}>
+            <Button type="button" className={paletteStyles.section} onClick={() => onSection(section.id)} aria-label={`Add ${section.label} block`}>
+              <span className={paletteStyles.sectionHead}>
+                <span>{section.label}</span>
+                <span className={paletteStyles.sectionAdd} aria-hidden="true">
+                  + Add
+                </span>
+              </span>
+              <span className={paletteStyles.preview}>{previews[section.id] ? <img className={paletteStyles.image} src={previews[section.id]} alt="" /> : <span className={paletteStyles.loading}>Drawing preview</span>}</span>
+            </Button>
           </li>
         ))}
       </ul>

@@ -1,4 +1,6 @@
 import react from '@vitejs/plugin-react';
+import pandacss from '@pandacss/vite';
+import { fileURLToPath } from 'node:url';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { defineConfig, type Plugin } from 'vite';
 
@@ -266,5 +268,6 @@ function mapOffkaiResponse(value: unknown, includeAttendeeSerial: boolean) {
 
 export default defineConfig({
   base: process.env.VITE_BASE_PATH || '/',
-  plugins: [react(), offkaiImportPlugin()]
+  resolve: { alias: { 'styled-system': fileURLToPath(new URL('./styled-system', import.meta.url)) } },
+  plugins: [pandacss(), react(), offkaiImportPlugin()]
 });

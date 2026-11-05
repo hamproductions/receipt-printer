@@ -61,7 +61,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 0
+        "y": 0,
+        "group": "raffle-1"
       },
       {
         "kind": "text",
@@ -78,7 +79,8 @@
         "lineHeight": 1.1,
         "letterSpacing": 0,
         "y": 28,
-        "text": "{{event}}"
+        "text": "{{event}}",
+        "group": "raffle-1"
       },
       {
         "kind": "text",
@@ -95,7 +97,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 84,
-        "text": "PRIZE: {{prize}}"
+        "text": "PRIZE: {{prize}}",
+        "group": "raffle-1"
       },
       {
         "kind": "shape",
@@ -108,7 +111,8 @@
         "fill": "solid",
         "stroke": 0,
         "radius": 0,
-        "y": 124
+        "y": 124,
+        "group": "raffle-1"
       },
       {
         "kind": "text",
@@ -125,7 +129,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 138,
-        "text": "{num:1000-9999}"
+        "text": "{num:1000-9999}",
+        "group": "raffle-1"
       },
       {
         "kind": "text",
@@ -142,7 +147,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 240,
-        "text": "DRAW {{draw}}  {{time}}\nTICKET {{price}}"
+        "text": "DRAW {{draw}}  {{time}}\nTICKET {{price}}",
+        "group": "raffle-1"
       },
       {
         "kind": "text",
@@ -160,7 +166,8 @@
         "letterSpacing": 0,
         "y": 312,
         "text": "Must be present to win",
-        "when": "present"
+        "when": "present",
+        "group": "raffle-1"
       },
       {
         "kind": "text",
@@ -177,7 +184,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 362,
-        "text": "✂"
+        "text": "✂",
+        "group": "raffle-1"
       },
       {
         "kind": "shape",
@@ -190,7 +198,8 @@
         "fill": "solid",
         "stroke": 2,
         "radius": 0,
-        "y": 374
+        "y": 374,
+        "group": "raffle-1"
       },
       {
         "kind": "text",
@@ -207,7 +216,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 396,
-        "text": "STUB\nName _______\nPhone ______"
+        "text": "STUB\nName _______\nPhone ______",
+        "group": "raffle-2"
       },
       {
         "kind": "text",
@@ -224,7 +234,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 400,
-        "text": "{num:1000-9999}"
+        "text": "{num:1000-9999}",
+        "group": "raffle-2"
       },
       {
         "kind": "text",
@@ -241,7 +252,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 452,
-        "text": "{{event}}"
+        "text": "{{event}}",
+        "group": "raffle-2"
       },
       {
         "kind": "barcode",
@@ -253,13 +265,22 @@
         "data": "RAFFLE-{num:1000-9999}",
         "format": "CODE128",
         "showText": false,
-        "y": 492
+        "y": 492,
+        "group": "raffle-2"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "raffle-1": {
+        "name": "SPRING FAIR RAFFLE"
+      },
+      "raffle-2": {
+        "name": "STUB Name _______ Phone ____"
+      }
     }
   }
 }

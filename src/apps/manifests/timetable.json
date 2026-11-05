@@ -98,7 +98,8 @@
         "lineHeight": 1.0,
         "letterSpacing": 0,
         "y": 16,
-        "text": "{{title}}"
+        "text": "{{title}}",
+        "group": "timetable-1"
       },
       {
         "kind": "text",
@@ -115,7 +116,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 80,
-        "text": "{{date}} / {{venue}}"
+        "text": "{{date}} / {{venue}}",
+        "group": "timetable-1"
       },
       {
         "kind": "shape",
@@ -128,7 +130,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 117
+        "y": 117,
+        "group": "timetable-1"
       },
       {
         "kind": "text",
@@ -145,7 +148,8 @@
         "lineHeight": 1.3,
         "letterSpacing": 0,
         "y": 141,
-        "text": "{{acts}}"
+        "text": "{{acts}}",
+        "group": "timetable-2"
       },
       {
         "kind": "shape",
@@ -158,7 +162,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 372
+        "y": 372,
+        "group": "timetable-2"
       },
       {
         "kind": "text",
@@ -176,7 +181,8 @@
         "letterSpacing": 0,
         "y": 396,
         "text": "{{note}}",
-        "when": "note"
+        "when": "note",
+        "group": "timetable-3"
       },
       {
         "kind": "text",
@@ -193,13 +199,25 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 457,
-        "text": "printed {date} {time}"
+        "text": "printed {date} {time}",
+        "group": "timetable-3"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "timetable-1": {
+        "name": "SUMMER FEST"
+      },
+      "timetable-2": {
+        "name": "Running order"
+      },
+      "timetable-3": {
+        "name": "Doors open 30 min early. Tim"
+      }
     }
   }
 }

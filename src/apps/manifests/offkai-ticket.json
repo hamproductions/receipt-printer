@@ -66,7 +66,8 @@
         "contrast": 0,
         "gamma": 1,
         "threshold": 128,
-        "autoTrim": true
+        "autoTrim": true,
+        "group": "offkai-ticket-1"
       },
       {
         "kind": "text",
@@ -83,7 +84,8 @@
         "italic": false,
         "align": "center",
         "lineHeight": 1.0,
-        "letterSpacing": 0
+        "letterSpacing": 0,
+        "group": "offkai-ticket-2"
       },
       {
         "kind": "text",
@@ -100,7 +102,8 @@
         "italic": false,
         "align": "center",
         "lineHeight": 1.0,
-        "letterSpacing": 0
+        "letterSpacing": 0,
+        "group": "offkai-ticket-2"
       },
       {
         "kind": "text",
@@ -117,7 +120,8 @@
         "italic": false,
         "align": "left",
         "lineHeight": 1.0,
-        "letterSpacing": 0
+        "letterSpacing": 0,
+        "group": "offkai-ticket-2"
       },
       {
         "kind": "text",
@@ -134,7 +138,8 @@
         "italic": false,
         "align": "left",
         "lineHeight": 1.0,
-        "letterSpacing": 0
+        "letterSpacing": 0,
+        "group": "offkai-ticket-2"
       },
       {
         "kind": "text",
@@ -151,7 +156,8 @@
         "italic": false,
         "align": "left",
         "lineHeight": 1.0,
-        "letterSpacing": 0
+        "letterSpacing": 0,
+        "group": "offkai-ticket-2"
       },
       {
         "kind": "text",
@@ -168,7 +174,8 @@
         "italic": false,
         "align": "left",
         "lineHeight": 1.1,
-        "letterSpacing": 0
+        "letterSpacing": 0,
+        "group": "offkai-ticket-2"
       }
     ],
     "print": {
@@ -176,6 +183,14 @@
       "copies": 1,
       "darkness": 128,
       "rotate": 90
+    },
+    "sections": {
+      "offkai-ticket-1": {
+        "name": "Photo"
+      },
+      "offkai-ticket-2": {
+        "name": "/r/LoveLive Offkai"
+      }
     }
   }
 }

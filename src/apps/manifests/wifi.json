@@ -52,7 +52,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 8,
-        "text": "{{heading}}"
+        "text": "{{heading}}",
+        "group": "wifi-1"
       },
       {
         "kind": "qr",
@@ -63,7 +64,8 @@
         "invert": false,
         "data": "WIFI:T:WPA;S:{{ssid}};P:{{password}};;",
         "ecc": "M",
-        "y": 64
+        "y": 64,
+        "group": "wifi-1"
       },
       {
         "kind": "text",
@@ -80,7 +82,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 356,
-        "text": "Network: {{ssid}}"
+        "text": "Network: {{ssid}}",
+        "group": "wifi-1"
       },
       {
         "kind": "text",
@@ -98,13 +101,19 @@
         "letterSpacing": 0,
         "y": 388,
         "text": "Password: {{password}}",
-        "when": "showPassword"
+        "when": "showPassword",
+        "group": "wifi-1"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "wifi-1": {
+        "name": "Scan to join Wi-Fi"
+      }
     }
   }
 }

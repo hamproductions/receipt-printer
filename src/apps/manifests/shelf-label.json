@@ -63,7 +63,8 @@
         "shape": "rect",
         "fill": "none",
         "stroke": 4,
-        "radius": 0
+        "radius": 0,
+        "group": "shelf-label-1"
       },
       {
         "kind": "text",
@@ -80,7 +81,8 @@
         "align": "left",
         "lineHeight": 1.1,
         "letterSpacing": 0,
-        "text": "{{product}}"
+        "text": "{{product}}",
+        "group": "shelf-label-2"
       },
       {
         "kind": "text",
@@ -98,7 +100,8 @@
         "lineHeight": 1.3,
         "letterSpacing": 0,
         "text": "SALE",
-        "when": "sale"
+        "when": "sale",
+        "group": "shelf-label-2"
       },
       {
         "kind": "text",
@@ -115,7 +118,8 @@
         "align": "left",
         "lineHeight": 1.2,
         "letterSpacing": 0,
-        "text": "{{size}}"
+        "text": "{{size}}",
+        "group": "shelf-label-2"
       },
       {
         "kind": "shape",
@@ -128,7 +132,8 @@
         "shape": "line",
         "fill": "solid",
         "stroke": 2,
-        "radius": 0
+        "radius": 0,
+        "group": "shelf-label-2"
       },
       {
         "kind": "text",
@@ -145,7 +150,8 @@
         "align": "left",
         "lineHeight": 1,
         "letterSpacing": 0,
-        "text": "{{price}}"
+        "text": "{{price}}",
+        "group": "shelf-label-2"
       },
       {
         "kind": "text",
@@ -162,7 +168,8 @@
         "align": "left",
         "lineHeight": 1.2,
         "letterSpacing": 0,
-        "text": "{{unit}}"
+        "text": "{{unit}}",
+        "group": "shelf-label-2"
       },
       {
         "kind": "barcode",
@@ -174,7 +181,8 @@
         "invert": false,
         "data": "{{code}}",
         "format": "CODE128",
-        "showText": true
+        "showText": true,
+        "group": "shelf-label-2"
       },
       {
         "kind": "text",
@@ -191,13 +199,22 @@
         "align": "center",
         "lineHeight": 1.2,
         "letterSpacing": 0,
-        "text": "Printed {date}"
+        "text": "Printed {date}",
+        "group": "shelf-label-2"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "shelf-label-1": {
+        "name": "Frame and background"
+      },
+      "shelf-label-2": {
+        "name": "Oat Milk Barista"
+      }
     }
   }
 }

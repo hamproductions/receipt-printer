@@ -77,7 +77,8 @@
         "lineHeight": 1.4,
         "letterSpacing": 0,
         "y": 0,
-        "text": "{{airline}}   BOARDING PASS"
+        "text": "{{airline}}   BOARDING PASS",
+        "group": "boarding-wide-1"
       },
       {
         "kind": "text",
@@ -94,7 +95,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 52,
-        "text": "FROM"
+        "text": "FROM",
+        "group": "boarding-wide-1"
       },
       {
         "kind": "text",
@@ -111,7 +113,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 52,
-        "text": "TO"
+        "text": "TO",
+        "group": "boarding-wide-1"
       },
       {
         "kind": "text",
@@ -128,7 +131,8 @@
         "lineHeight": 1,
         "letterSpacing": 0,
         "y": 72,
-        "text": "{{fromCode}}"
+        "text": "{{fromCode}}",
+        "group": "boarding-wide-1"
       },
       {
         "kind": "shape",
@@ -141,7 +145,8 @@
         "fill": "solid",
         "stroke": 4,
         "radius": 0,
-        "y": 133
+        "y": 133,
+        "group": "boarding-wide-1"
       },
       {
         "kind": "text",
@@ -158,7 +163,8 @@
         "lineHeight": 1,
         "letterSpacing": 0,
         "y": 105,
-        "text": ">"
+        "text": ">",
+        "group": "boarding-wide-1"
       },
       {
         "kind": "text",
@@ -175,7 +181,8 @@
         "lineHeight": 1,
         "letterSpacing": 0,
         "y": 72,
-        "text": "{{toCode}}"
+        "text": "{{toCode}}",
+        "group": "boarding-wide-1"
       },
       {
         "kind": "text",
@@ -193,7 +200,8 @@
         "letterSpacing": 0,
         "y": 206,
         "text": "PASSENGER",
-        "when": "passenger"
+        "when": "passenger",
+        "group": "boarding-wide-1"
       },
       {
         "kind": "text",
@@ -211,7 +219,8 @@
         "letterSpacing": 0,
         "y": 202,
         "text": "{{passenger}}",
-        "when": "passenger"
+        "when": "passenger",
+        "group": "boarding-wide-1"
       },
       {
         "kind": "shape",
@@ -224,7 +233,8 @@
         "fill": "solid",
         "stroke": 2,
         "radius": 0,
-        "y": 234
+        "y": 234,
+        "group": "boarding-wide-1"
       },
       {
         "kind": "text",
@@ -241,7 +251,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 252,
-        "text": "FLIGHT"
+        "text": "FLIGHT",
+        "group": "boarding-wide-1"
       },
       {
         "kind": "text",
@@ -258,7 +269,8 @@
         "lineHeight": 1,
         "letterSpacing": 0,
         "y": 272,
-        "text": "{{flight}}"
+        "text": "{{flight}}",
+        "group": "boarding-wide-1"
       },
       {
         "kind": "text",
@@ -275,7 +287,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 252,
-        "text": "GATE"
+        "text": "GATE",
+        "group": "boarding-wide-1"
       },
       {
         "kind": "text",
@@ -292,7 +305,8 @@
         "lineHeight": 1,
         "letterSpacing": 0,
         "y": 272,
-        "text": "{{gate}}"
+        "text": "{{gate}}",
+        "group": "boarding-wide-1"
       },
       {
         "kind": "text",
@@ -309,7 +323,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 252,
-        "text": "SEAT"
+        "text": "SEAT",
+        "group": "boarding-wide-1"
       },
       {
         "kind": "text",
@@ -326,7 +341,8 @@
         "lineHeight": 1,
         "letterSpacing": 0,
         "y": 272,
-        "text": "{{seat}}"
+        "text": "{{seat}}",
+        "group": "boarding-wide-1"
       },
       {
         "kind": "text",
@@ -343,7 +359,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 252,
-        "text": "BOARDING"
+        "text": "BOARDING",
+        "group": "boarding-wide-1"
       },
       {
         "kind": "text",
@@ -360,7 +377,8 @@
         "lineHeight": 1,
         "letterSpacing": 0,
         "y": 272,
-        "text": "{{board}}"
+        "text": "{{board}}",
+        "group": "boarding-wide-1"
       },
       {
         "kind": "barcode",
@@ -372,7 +390,8 @@
         "data": "{{flight}} {{seat}} {{fromCode}}{{toCode}}",
         "format": "CODE128",
         "showText": false,
-        "y": 324
+        "y": 324,
+        "group": "boarding-wide-1"
       },
       {
         "kind": "shape",
@@ -385,7 +404,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 188
+        "y": 188,
+        "group": "boarding-wide-1"
       },
       {
         "kind": "text",
@@ -402,7 +422,8 @@
         "lineHeight": 1.4,
         "letterSpacing": 0,
         "y": 0,
-        "text": "STUB"
+        "text": "STUB",
+        "group": "boarding-wide-2"
       },
       {
         "kind": "text",
@@ -419,7 +440,8 @@
         "lineHeight": 1,
         "letterSpacing": 0,
         "y": 52,
-        "text": "{{fromCode}} > {{toCode}}"
+        "text": "{{fromCode}} > {{toCode}}",
+        "group": "boarding-wide-2"
       },
       {
         "kind": "text",
@@ -436,7 +458,8 @@
         "lineHeight": 1.3,
         "letterSpacing": 0,
         "y": 116,
-        "text": "FLIGHT {{flight}}\nGATE {{gate}}  SEAT {{seat}}\nBOARD {{board}}"
+        "text": "FLIGHT {{flight}}\nGATE {{gate}}  SEAT {{seat}}\nBOARD {{board}}",
+        "group": "boarding-wide-2"
       },
       {
         "kind": "text",
@@ -454,7 +477,8 @@
         "letterSpacing": 0,
         "y": 196,
         "text": "{{passenger}}",
-        "when": "passenger"
+        "when": "passenger",
+        "group": "boarding-wide-2"
       },
       {
         "kind": "text",
@@ -471,7 +495,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 230,
-        "text": "SEQ {num:1-300}"
+        "text": "SEQ {num:1-300}",
+        "group": "boarding-wide-2"
       },
       {
         "kind": "barcode",
@@ -483,13 +508,22 @@
         "data": "{{flight}} {{seat}}",
         "format": "CODE128",
         "showText": false,
-        "y": 324
+        "y": 324,
+        "group": "boarding-wide-2"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "boarding-wide-1": {
+        "name": "SKYLARK AIR BOARDING PASS"
+      },
+      "boarding-wide-2": {
+        "name": "STUB"
+      }
     }
   }
 }

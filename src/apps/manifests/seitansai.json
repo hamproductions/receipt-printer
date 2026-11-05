@@ -54,7 +54,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 0
+        "y": 0,
+        "group": "seitansai-1"
       },
       {
         "kind": "text",
@@ -71,7 +72,8 @@
         "lineHeight": 1.1,
         "letterSpacing": 4,
         "y": 28,
-        "text": "{{tagline}}"
+        "text": "{{tagline}}",
+        "group": "seitansai-1"
       },
       {
         "kind": "shape",
@@ -84,7 +86,8 @@
         "fill": "dots",
         "stroke": 3,
         "radius": 0,
-        "y": 88
+        "y": 88,
+        "group": "seitansai-1"
       },
       {
         "kind": "shape",
@@ -97,7 +100,8 @@
         "fill": "dots",
         "stroke": 3,
         "radius": 0,
-        "y": 88
+        "y": 88,
+        "group": "seitansai-1"
       },
       {
         "kind": "text",
@@ -114,7 +118,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 84,
-        "text": "{{oshi}}"
+        "text": "{{oshi}}",
+        "group": "seitansai-1"
       },
       {
         "kind": "text",
@@ -131,7 +136,8 @@
         "lineHeight": 1.4,
         "letterSpacing": 0,
         "y": 154,
-        "text": "生誕祭 {{birthday}}"
+        "text": "生誕祭 {{birthday}}",
+        "group": "seitansai-1"
       },
       {
         "kind": "text",
@@ -148,7 +154,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 204,
-        "text": "♥ ★ ♥ ★ ♥ ★ ♥"
+        "text": "♥ ★ ♥ ★ ♥ ★ ♥",
+        "group": "seitansai-1"
       },
       {
         "kind": "text",
@@ -165,7 +172,8 @@
         "lineHeight": 1.5,
         "letterSpacing": 0,
         "y": 250,
-        "text": "{{message}}"
+        "text": "{{message}}",
+        "group": "seitansai-1"
       },
       {
         "kind": "shape",
@@ -178,7 +186,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 392
+        "y": 392,
+        "group": "seitansai-1"
       },
       {
         "kind": "text",
@@ -195,7 +204,8 @@
         "lineHeight": 1.3,
         "letterSpacing": 0,
         "y": 414,
-        "text": "from {{fan}}"
+        "text": "from {{fan}}",
+        "group": "seitansai-2"
       },
       {
         "kind": "text",
@@ -212,7 +222,8 @@
         "lineHeight": 1.3,
         "letterSpacing": 0,
         "y": 456,
-        "text": "★ {date} ★"
+        "text": "★ {date} ★",
+        "group": "seitansai-2"
       },
       {
         "kind": "shape",
@@ -225,13 +236,22 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 490
+        "y": 490,
+        "group": "seitansai-2"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "seitansai-1": {
+        "name": "HAPPY BIRTHDAY"
+      },
+      "seitansai-2": {
+        "name": "from ファン一同"
+      }
     }
   }
 }

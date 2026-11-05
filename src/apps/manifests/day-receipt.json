@@ -103,7 +103,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 20,
-        "text": "{{store}}"
+        "text": "{{store}}",
+        "group": "day-receipt-1"
       },
       {
         "kind": "text",
@@ -120,7 +121,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 66,
-        "text": "{date}  {time}\nREG 01  CLERK: {{clerk}}"
+        "text": "{date}  {time}\nREG 01  CLERK: {{clerk}}",
+        "group": "day-receipt-1"
       },
       {
         "kind": "shape",
@@ -133,7 +135,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 130
+        "y": 130,
+        "group": "day-receipt-1"
       },
       {
         "kind": "text",
@@ -150,7 +153,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 148,
-        "text": "{{items}}"
+        "text": "{{items}}",
+        "group": "day-receipt-2"
       },
       {
         "kind": "shape",
@@ -163,7 +167,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 316
+        "y": 316,
+        "group": "day-receipt-2"
       },
       {
         "kind": "text",
@@ -180,7 +185,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 334,
-        "text": "TOTAL"
+        "text": "TOTAL",
+        "group": "day-receipt-3"
       },
       {
         "kind": "text",
@@ -197,7 +203,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 334,
-        "text": "{{total}}"
+        "text": "{{total}}",
+        "group": "day-receipt-3"
       },
       {
         "kind": "text",
@@ -214,7 +221,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 386,
-        "text": "Points earned today: {num:100-999}"
+        "text": "Points earned today: {num:100-999}",
+        "group": "day-receipt-3"
       },
       {
         "kind": "barcode",
@@ -226,7 +234,8 @@
         "data": "TODAY-{dice}",
         "format": "CODE128",
         "showText": false,
-        "y": 428
+        "y": 428,
+        "group": "day-receipt-3"
       },
       {
         "kind": "text",
@@ -243,13 +252,25 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 504,
-        "text": "{{footer}}"
+        "text": "{{footer}}",
+        "group": "day-receipt-3"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "day-receipt-1": {
+        "name": "TODAY MART"
+      },
+      "day-receipt-2": {
+        "name": "Wins"
+      },
+      "day-receipt-3": {
+        "name": "TOTAL"
+      }
     }
   }
 }

@@ -1,4 +1,4 @@
-import type { DocApp } from './apps/types';
+import type { DocApp, Field } from './apps/types';
 
 export const PAPER_DOTS = 384;
 export const DOTS_PER_MM = 8;
@@ -8,7 +8,8 @@ export type DitherAlgo = 'floyd' | 'atkinson' | 'stucki' | 'jarvis' | 'sierra' |
 export type ImageFit = 'cover' | 'contain' | 'stretch';
 export type ImageFrame = 'none' | 'polaroid' | 'border';
 export type BarcodeFormat = 'CODE128' | 'CODE39' | 'EAN13' | 'UPC' | 'ITF14';
-export type ShapeKind = 'rect' | 'ellipse' | 'line' | 'dashes' | 'zigzag' | 'scallop';
+export type ShapeKind = 'rect' | 'ellipse' | 'line' | 'dashes' | 'zigzag' | 'scallop' | 'icon';
+export type IconName = 'wifi' | 'key' | 'home' | 'calendar' | 'clock' | 'rules' | 'plug' | 'check' | 'trash' | 'heart' | 'info' | 'star';
 export type Fill = 'none' | 'solid' | 'gray25' | 'gray50' | 'gray75' | 'stripes' | 'dots' | 'checker';
 
 type Base = {
@@ -20,6 +21,10 @@ type Base = {
   h: number;
   rotation: number;
   invert: boolean;
+  group?: string;
+  name?: string;
+  hidden?: boolean;
+  locked?: boolean;
 };
 
 export type TextElement = Base & {
@@ -32,6 +37,8 @@ export type TextElement = Base & {
   align: Align;
   lineHeight: number;
   letterSpacing: number;
+  fit?: 'grow' | 'shrink' | 'line';
+  role?: 'heading' | 'body';
 };
 
 export type ImageElement = Base & {
@@ -70,6 +77,7 @@ export type BarcodeElement = Base & {
 export type ShapeElement = Base & {
   kind: 'shape';
   shape: ShapeKind;
+  icon?: IconName;
   fill: Fill;
   stroke: number;
   radius: number;
@@ -88,6 +96,13 @@ export type PrintSettings = {
   darkness: number;
 };
 
+export type RepeatingSection = {
+  field: string;
+  y: number;
+  gap: number;
+  variants: Record<string, Element[]>;
+};
+
 export type Doc = {
   version: 1;
   name: string;
@@ -96,7 +111,10 @@ export type Doc = {
   autoLength: boolean;
   endSpace?: number;
   app?: DocApp;
+  fields?: Field[];
+  repeats?: RepeatingSection[];
   guides?: { x: number[]; y: number[] };
+  sections?: Record<string, { gap?: number; inset?: number; align?: 'left' | 'center' | 'right'; name?: string }>;
   elements: Element[];
   print: PrintSettings;
 };

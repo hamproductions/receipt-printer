@@ -51,7 +51,8 @@
         "contrast": 30,
         "gamma": 1.4,
         "threshold": 128,
-        "y": 0
+        "y": 0,
+        "group": "meme-1"
       },
       {
         "kind": "text",
@@ -69,7 +70,8 @@
         "letterSpacing": 0,
         "y": 12,
         "text": "{{top}}",
-        "when": "show_top"
+        "when": "show_top",
+        "group": "meme-1"
       },
       {
         "kind": "text",
@@ -87,13 +89,19 @@
         "letterSpacing": 0,
         "y": 318,
         "text": "{{bottom}}",
-        "when": "show_bottom"
+        "when": "show_bottom",
+        "group": "meme-1"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "meme-1": {
+        "name": "TOP TEXT"
+      }
     }
   }
 }

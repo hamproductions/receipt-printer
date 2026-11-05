@@ -47,7 +47,8 @@
         "lineHeight": 1,
         "letterSpacing": 0,
         "y": 0,
-        "text": "{{date}}"
+        "text": "{{date}}",
+        "group": "planner-1"
       },
       {
         "kind": "text",
@@ -65,7 +66,8 @@
         "letterSpacing": 0,
         "y": 12,
         "text": "{{title}}",
-        "when": "show_title"
+        "when": "show_title",
+        "group": "planner-1"
       },
       {
         "kind": "shape",
@@ -78,7 +80,8 @@
         "fill": "solid",
         "stroke": 4,
         "radius": 0,
-        "y": 68
+        "y": 68,
+        "group": "planner-1"
       },
       {
         "kind": "text",
@@ -95,7 +98,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 88,
-        "text": "08:00"
+        "text": "08:00",
+        "group": "planner-2"
       },
       {
         "kind": "shape",
@@ -108,7 +112,8 @@
         "fill": "solid",
         "stroke": 1,
         "radius": 0,
-        "y": 112
+        "y": 112,
+        "group": "planner-2"
       },
       {
         "kind": "text",
@@ -125,7 +130,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 132,
-        "text": "09:00"
+        "text": "09:00",
+        "group": "planner-2"
       },
       {
         "kind": "shape",
@@ -138,7 +144,8 @@
         "fill": "solid",
         "stroke": 1,
         "radius": 0,
-        "y": 156
+        "y": 156,
+        "group": "planner-2"
       },
       {
         "kind": "text",
@@ -155,7 +162,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 176,
-        "text": "10:00"
+        "text": "10:00",
+        "group": "planner-2"
       },
       {
         "kind": "shape",
@@ -168,7 +176,8 @@
         "fill": "solid",
         "stroke": 1,
         "radius": 0,
-        "y": 200
+        "y": 200,
+        "group": "planner-2"
       },
       {
         "kind": "text",
@@ -185,7 +194,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 220,
-        "text": "11:00"
+        "text": "11:00",
+        "group": "planner-2"
       },
       {
         "kind": "shape",
@@ -198,7 +208,8 @@
         "fill": "solid",
         "stroke": 1,
         "radius": 0,
-        "y": 244
+        "y": 244,
+        "group": "planner-2"
       },
       {
         "kind": "text",
@@ -215,7 +226,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 264,
-        "text": "12:00"
+        "text": "12:00",
+        "group": "planner-2"
       },
       {
         "kind": "shape",
@@ -228,7 +240,8 @@
         "fill": "solid",
         "stroke": 1,
         "radius": 0,
-        "y": 288
+        "y": 288,
+        "group": "planner-2"
       },
       {
         "kind": "text",
@@ -245,7 +258,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 308,
-        "text": "13:00"
+        "text": "13:00",
+        "group": "planner-2"
       },
       {
         "kind": "shape",
@@ -258,7 +272,8 @@
         "fill": "solid",
         "stroke": 1,
         "radius": 0,
-        "y": 332
+        "y": 332,
+        "group": "planner-2"
       },
       {
         "kind": "text",
@@ -275,7 +290,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 352,
-        "text": "14:00"
+        "text": "14:00",
+        "group": "planner-2"
       },
       {
         "kind": "shape",
@@ -288,7 +304,8 @@
         "fill": "solid",
         "stroke": 1,
         "radius": 0,
-        "y": 376
+        "y": 376,
+        "group": "planner-2"
       },
       {
         "kind": "text",
@@ -305,7 +322,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 396,
-        "text": "15:00"
+        "text": "15:00",
+        "group": "planner-2"
       },
       {
         "kind": "shape",
@@ -318,7 +336,8 @@
         "fill": "solid",
         "stroke": 1,
         "radius": 0,
-        "y": 420
+        "y": 420,
+        "group": "planner-2"
       },
       {
         "kind": "text",
@@ -335,7 +354,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 440,
-        "text": "16:00"
+        "text": "16:00",
+        "group": "planner-2"
       },
       {
         "kind": "shape",
@@ -348,7 +368,8 @@
         "fill": "solid",
         "stroke": 1,
         "radius": 0,
-        "y": 464
+        "y": 464,
+        "group": "planner-2"
       },
       {
         "kind": "text",
@@ -365,7 +386,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 484,
-        "text": "17:00"
+        "text": "17:00",
+        "group": "planner-2"
       },
       {
         "kind": "shape",
@@ -378,7 +400,8 @@
         "fill": "solid",
         "stroke": 1,
         "radius": 0,
-        "y": 508
+        "y": 508,
+        "group": "planner-2"
       },
       {
         "kind": "text",
@@ -395,7 +418,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 528,
-        "text": "18:00"
+        "text": "18:00",
+        "group": "planner-2"
       },
       {
         "kind": "shape",
@@ -408,7 +432,8 @@
         "fill": "solid",
         "stroke": 1,
         "radius": 0,
-        "y": 552
+        "y": 552,
+        "group": "planner-2"
       },
       {
         "kind": "text",
@@ -425,7 +450,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 572,
-        "text": "19:00"
+        "text": "19:00",
+        "group": "planner-2"
       },
       {
         "kind": "shape",
@@ -438,13 +464,22 @@
         "fill": "solid",
         "stroke": 1,
         "radius": 0,
-        "y": 596
+        "y": 596,
+        "group": "planner-2"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "planner-1": {
+        "name": "Date"
+      },
+      "planner-2": {
+        "name": "08:00"
+      }
     }
   }
 }

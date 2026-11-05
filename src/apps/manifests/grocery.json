@@ -99,7 +99,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 16,
-        "text": "{{store}}"
+        "text": "{{store}}",
+        "group": "grocery-1"
       },
       {
         "kind": "text",
@@ -116,7 +117,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 66,
-        "text": "LIST FOR {date}"
+        "text": "LIST FOR {date}",
+        "group": "grocery-1"
       },
       {
         "kind": "shape",
@@ -129,7 +131,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 108
+        "y": 108,
+        "group": "grocery-1"
       },
       {
         "kind": "text",
@@ -146,7 +149,8 @@
         "lineHeight": 1.3,
         "letterSpacing": 0,
         "y": 128,
-        "text": "{{items}}"
+        "text": "{{items}}",
+        "group": "grocery-2"
       },
       {
         "kind": "shape",
@@ -159,7 +163,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 412
+        "y": 412,
+        "group": "grocery-2"
       },
       {
         "kind": "text",
@@ -176,7 +181,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 432,
-        "text": "ITEMS {{count:items}}"
+        "text": "ITEMS {{count:items}}",
+        "group": "grocery-3"
       },
       {
         "kind": "text",
@@ -194,7 +200,8 @@
         "letterSpacing": 0,
         "y": 432,
         "text": "BUDGET {{budget}}",
-        "when": "budget"
+        "when": "budget",
+        "group": "grocery-3"
       },
       {
         "kind": "text",
@@ -212,13 +219,25 @@
         "letterSpacing": 0,
         "y": 476,
         "text": "{{note}}",
-        "when": "note"
+        "when": "note",
+        "group": "grocery-3"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "grocery-1": {
+        "name": "MARKET RUN"
+      },
+      "grocery-2": {
+        "name": "Items"
+      },
+      "grocery-3": {
+        "name": "ITEMS Items"
+      }
     }
   }
 }

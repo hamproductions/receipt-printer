@@ -80,7 +80,8 @@
         "fill": "none",
         "stroke": 4,
         "radius": 0,
-        "y": 0
+        "y": 0,
+        "group": "omikuji-1"
       },
       {
         "kind": "shape",
@@ -93,7 +94,8 @@
         "fill": "none",
         "stroke": 1,
         "radius": 0,
-        "y": 10
+        "y": 10,
+        "group": "omikuji-1"
       },
       {
         "kind": "text",
@@ -110,7 +112,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 50,
-        "text": "{{title}}"
+        "text": "{{title}}",
+        "group": "omikuji-2"
       },
       {
         "kind": "text",
@@ -127,7 +130,8 @@
         "lineHeight": 1,
         "letterSpacing": 0,
         "y": 116,
-        "text": "{{fortune}}"
+        "text": "{{fortune}}",
+        "group": "omikuji-3"
       },
       {
         "kind": "shape",
@@ -140,7 +144,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 262
+        "y": 262,
+        "group": "omikuji-3"
       },
       {
         "kind": "text",
@@ -157,7 +162,8 @@
         "lineHeight": 1.6,
         "letterSpacing": 0,
         "y": 290,
-        "text": "{{lines}}"
+        "text": "{{lines}}",
+        "group": "omikuji-4"
       },
       {
         "kind": "text",
@@ -174,13 +180,31 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 470,
-        "text": "{{date}}"
+        "text": "{{date}}",
+        "group": "omikuji-5"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "omikuji-1": {
+        "name": "Frame and background"
+      },
+      "omikuji-2": {
+        "name": "おみくじ"
+      },
+      "omikuji-3": {
+        "name": "大吉"
+      },
+      "omikuji-4": {
+        "name": "Readings"
+      },
+      "omikuji-5": {
+        "name": "Date"
+      }
     }
   }
 }

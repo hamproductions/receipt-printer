@@ -100,7 +100,8 @@
         "lineHeight": 1.3,
         "letterSpacing": 0,
         "y": 0,
-        "text": "領 収 書"
+        "text": "領 収 書",
+        "group": "ryoshusho-1"
       },
       {
         "kind": "text",
@@ -117,7 +118,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 66,
-        "text": "{date} {time}  レジ#{{register}}"
+        "text": "{date} {time}  レジ#{{register}}",
+        "group": "ryoshusho-2"
       },
       {
         "kind": "shape",
@@ -130,7 +132,8 @@
         "fill": "solid",
         "stroke": 2,
         "radius": 0,
-        "y": 98
+        "y": 98,
+        "group": "ryoshusho-2"
       },
       {
         "kind": "text",
@@ -147,7 +150,8 @@
         "lineHeight": 1.45,
         "letterSpacing": 0,
         "y": 112,
-        "text": "{{items}}\n{{note}}"
+        "text": "{{items}}\n{{note}}",
+        "group": "ryoshusho-2"
       },
       {
         "kind": "shape",
@@ -160,7 +164,8 @@
         "fill": "solid",
         "stroke": 2,
         "radius": 0,
-        "y": 248
+        "y": 248,
+        "group": "ryoshusho-2"
       },
       {
         "kind": "text",
@@ -177,7 +182,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 264,
-        "text": "合計"
+        "text": "合計",
+        "group": "ryoshusho-3"
       },
       {
         "kind": "text",
@@ -194,7 +200,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 264,
-        "text": "¥{{sum:items.price}}"
+        "text": "¥{{sum:items.price}}",
+        "group": "ryoshusho-3"
       },
       {
         "kind": "text",
@@ -211,7 +218,8 @@
         "lineHeight": 1.45,
         "letterSpacing": 0,
         "y": 316,
-        "text": "お預り　　　　　　　　　¥{{paid}}\nお釣り　　　　　　　　　 ¥{{change}}"
+        "text": "お預り　　　　　　　　　¥{{paid}}\nお釣り　　　　　　　　　 ¥{{change}}",
+        "group": "ryoshusho-3"
       },
       {
         "kind": "barcode",
@@ -223,7 +231,8 @@
         "data": "{{barcode}}",
         "format": "EAN13",
         "showText": true,
-        "y": 392
+        "y": 392,
+        "group": "ryoshusho-4"
       },
       {
         "kind": "text",
@@ -240,13 +249,28 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 474,
-        "text": "{{footer}}"
+        "text": "{{footer}}",
+        "group": "ryoshusho-4"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "ryoshusho-1": {
+        "name": "領 収 書"
+      },
+      "ryoshusho-2": {
+        "name": "date time レジ#01"
+      },
+      "ryoshusho-3": {
+        "name": "合計"
+      },
+      "ryoshusho-4": {
+        "name": "またのご来店をお待ちしております"
+      }
     }
   }
 }

@@ -73,7 +73,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 0
+        "y": 0,
+        "group": "live-ticket-1"
       },
       {
         "kind": "text",
@@ -90,7 +91,8 @@
         "lineHeight": 1,
         "letterSpacing": 0,
         "y": 36,
-        "text": "{{artist}}"
+        "text": "{{artist}}",
+        "group": "live-ticket-1"
       },
       {
         "kind": "text",
@@ -107,7 +109,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 104,
-        "text": "{{tour}}"
+        "text": "{{tour}}",
+        "group": "live-ticket-2"
       },
       {
         "kind": "text",
@@ -124,7 +127,8 @@
         "lineHeight": 1.4,
         "letterSpacing": 0,
         "y": 152,
-        "text": "{{date}}\nOPEN {{open}} / START {{start}}\n{{venue}}"
+        "text": "{{date}}\nOPEN {{open}} / START {{start}}\n{{venue}}",
+        "group": "live-ticket-2"
       },
       {
         "kind": "shape",
@@ -137,7 +141,8 @@
         "fill": "solid",
         "stroke": 2,
         "radius": 0,
-        "y": 226
+        "y": 226,
+        "group": "live-ticket-2"
       },
       {
         "kind": "text",
@@ -154,7 +159,8 @@
         "lineHeight": 1.3,
         "letterSpacing": 0,
         "y": 244,
-        "text": "ゲート\n{{gate}}"
+        "text": "ゲート\n{{gate}}",
+        "group": "live-ticket-3"
       },
       {
         "kind": "text",
@@ -171,7 +177,8 @@
         "lineHeight": 1.3,
         "letterSpacing": 0,
         "y": 244,
-        "text": "整理番号\n{num:1-500}"
+        "text": "整理番号\n{num:1-500}",
+        "group": "live-ticket-3"
       },
       {
         "kind": "shape",
@@ -184,7 +191,8 @@
         "fill": "solid",
         "stroke": 2,
         "radius": 0,
-        "y": 318
+        "y": 318,
+        "group": "live-ticket-3"
       },
       {
         "kind": "qr",
@@ -195,7 +203,8 @@
         "invert": false,
         "data": "{{url}}",
         "ecc": "M",
-        "y": 340
+        "y": 340,
+        "group": "live-ticket-4"
       },
       {
         "kind": "text",
@@ -212,13 +221,28 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 512,
-        "text": "No re-entry. Keep this stub."
+        "text": "No re-entry. Keep this stub.",
+        "group": "live-ticket-4"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "live-ticket-1": {
+        "name": "ARTIST NAME"
+      },
+      "live-ticket-2": {
+        "name": "LIVE TOUR 2026"
+      },
+      "live-ticket-3": {
+        "name": "ゲート A"
+      },
+      "live-ticket-4": {
+        "name": "No re-entry. Keep this stub."
+      }
     }
   }
 }

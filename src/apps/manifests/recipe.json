@@ -109,7 +109,8 @@
         "lineHeight": 1.5,
         "letterSpacing": 6,
         "y": 16,
-        "text": "RECIPE CARD"
+        "text": "RECIPE CARD",
+        "group": "recipe-1"
       },
       {
         "kind": "text",
@@ -126,7 +127,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 55,
-        "text": "{{dish}}"
+        "text": "{{dish}}",
+        "group": "recipe-1"
       },
       {
         "kind": "text",
@@ -143,7 +145,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 107,
-        "text": "SERVES {{serves}}  |  {{minutes}} MIN"
+        "text": "SERVES {{serves}}  |  {{minutes}} MIN",
+        "group": "recipe-1"
       },
       {
         "kind": "shape",
@@ -156,7 +159,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 151
+        "y": 151,
+        "group": "recipe-1"
       },
       {
         "kind": "text",
@@ -173,7 +177,8 @@
         "lineHeight": 1.3,
         "letterSpacing": 2,
         "y": 171,
-        "text": "INGREDIENTS"
+        "text": "INGREDIENTS",
+        "group": "recipe-2"
       },
       {
         "kind": "text",
@@ -190,7 +195,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "y": 203,
-        "text": "{{ingredients}}"
+        "text": "{{ingredients}}",
+        "group": "recipe-2"
       },
       {
         "kind": "shape",
@@ -203,7 +209,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 403
+        "y": 403,
+        "group": "recipe-2"
       },
       {
         "kind": "text",
@@ -220,7 +227,8 @@
         "lineHeight": 1.3,
         "letterSpacing": 2,
         "y": 423,
-        "text": "METHOD"
+        "text": "METHOD",
+        "group": "recipe-3"
       },
       {
         "kind": "text",
@@ -237,7 +245,8 @@
         "lineHeight": 1.4,
         "letterSpacing": 0,
         "y": 455,
-        "text": "{{steps}}"
+        "text": "{{steps}}",
+        "group": "recipe-3"
       },
       {
         "kind": "text",
@@ -255,13 +264,25 @@
         "letterSpacing": 0,
         "y": 594,
         "text": "{{notes}}",
-        "when": "notes"
+        "when": "notes",
+        "group": "recipe-3"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "recipe-1": {
+        "name": "RECIPE CARD"
+      },
+      "recipe-2": {
+        "name": "INGREDIENTS"
+      },
+      "recipe-3": {
+        "name": "METHOD"
+      }
     }
   }
 }

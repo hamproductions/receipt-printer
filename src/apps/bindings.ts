@@ -42,7 +42,7 @@ export function formatRow(format: string, row: Record<string, string | number>) 
   });
 }
 
-export function expandBindings(text: string, values: AppValues, fields: Field[]) {
+export function expandBindings(text: string, values: AppValues, fields: Field[], blanks: string[] = []) {
   if (!text.includes('{{')) {
     return text;
   }
@@ -57,13 +57,26 @@ export function expandBindings(text: string, values: AppValues, fields: Field[])
     if (op === 'count:') {
       return String(rows(value).length);
     }
-    if (value === undefined || !field) {
+    if (op === 'wifi:') {
+      return blanks.includes(key) ? '' : String(value ?? '').replace(/([\\;,:"])/g, '\\$1');
+    }
+    if (!field) {
       return match;
+    }
+    if (blanks.includes(key)) {
+      return '_'.repeat(field.blankLength ?? (field.type === 'longtext' ? 24 : field.type === 'date' ? 10 : 16));
+    }
+    if (value === undefined) {
+      return '';
     }
     if (field.type === 'list') {
       return rows(value)
         .map((row) => formatRow(field.format, row))
         .join('\n');
+    }
+    if (field.type === 'date' && typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [year, month, day] = value.split('-').map(Number);
+      return new Intl.DateTimeFormat(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }).format(new Date(year, month - 1, day));
     }
     if (typeof value === 'number') {
       return formatNumber(value);
@@ -83,6 +96,41 @@ export function isShown(when: string | undefined, values: AppValues) {
   const value = values[negate ? when.slice(1) : when];
   const truthy = Array.isArray(value) ? value.length > 0 : !!value;
   return negate ? !truthy : truthy;
+}
+
+export function isMissing(field: Field, values: AppValues, blanks: string[] = []) {
+  if (blanks.includes(field.key) || field.type === 'toggle') {
+    return false;
+  }
+  const value = values[field.key];
+  return value === undefined || value === '' || (Array.isArray(value) && value.length === 0);
+}
+
+export function placeholderKeys(texts: string[]) {
+  const keys = new Set<string>();
+  for (const text of texts) {
+    for (const match of text.matchAll(/\{\{\s*(?:[a-z]+:)?([A-Za-z0-9_]+)(?:\.[A-Za-z0-9_]+)?\s*\}\}/g)) {
+      keys.add(match[1]);
+    }
+  }
+  return [...keys];
+}
+
+export function guessField(key: string): Field {
+  const label = key.replace(/_/g, ' ').replace(/^./, (char) => char.toUpperCase());
+  if (/date|arrival|departure|check_?in|check_?out/i.test(key)) {
+    return { key, label, type: 'date', default: '' };
+  }
+  if (/pin|password|passcode|code/i.test(key)) {
+    return { key, label, type: 'password', default: '' };
+  }
+  if (/url|link|website/i.test(key)) {
+    return { key, label, type: 'url', default: '' };
+  }
+  if (/rules|notes|message|instructions|list/i.test(key)) {
+    return { key, label, type: 'longtext', default: '' };
+  }
+  return { key, label, type: 'text', default: '' };
 }
 
 export function defaults(fields: Field[]): AppValues {

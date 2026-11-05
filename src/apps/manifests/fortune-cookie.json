@@ -59,7 +59,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 16,
-        "text": "{{heading}}"
+        "text": "{{heading}}",
+        "group": "fortune-cookie-1"
       },
       {
         "kind": "text",
@@ -76,7 +77,8 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 62,
-        "text": "No. {num:1000-9999}   {date}"
+        "text": "No. {num:1000-9999}   {date}",
+        "group": "fortune-cookie-1"
       },
       {
         "kind": "shape",
@@ -89,7 +91,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 100
+        "y": 100,
+        "group": "fortune-cookie-1"
       },
       {
         "kind": "text",
@@ -107,7 +110,8 @@
         "letterSpacing": 0,
         "y": 132,
         "text": "{pick:Good news arrives before the weekend|Say yes to the next invitation|The answer is in your pocket|A small risk brings a big laugh|Someone is about to thank you|Drink water. Then be brilliant|Your next idea is the good one|An old friend is thinking of you|Today rewards the curious|You will find what you lost}",
-        "when": "!useMine"
+        "when": "!useMine",
+        "group": "fortune-cookie-2"
       },
       {
         "kind": "text",
@@ -125,7 +129,8 @@
         "letterSpacing": 0,
         "y": 132,
         "text": "{pick:{{fortunes}}}",
-        "when": "useMine"
+        "when": "useMine",
+        "group": "fortune-cookie-2"
       },
       {
         "kind": "shape",
@@ -138,7 +143,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "y": 260
+        "y": 260,
+        "group": "fortune-cookie-2"
       },
       {
         "kind": "text",
@@ -156,7 +162,8 @@
         "letterSpacing": 0,
         "y": 288,
         "text": "LUCKY NUMBERS",
-        "when": "showLucky"
+        "when": "showLucky",
+        "group": "fortune-cookie-3"
       },
       {
         "kind": "text",
@@ -174,7 +181,8 @@
         "letterSpacing": 0,
         "y": 322,
         "text": "{num:1-49} {num:1-49} {num:1-49} {num:1-49} {num:1-49} {num:1-49}",
-        "when": "showLucky"
+        "when": "showLucky",
+        "group": "fortune-cookie-3"
       },
       {
         "kind": "text",
@@ -192,7 +200,8 @@
         "letterSpacing": 0,
         "y": 370,
         "text": "Lucky color: {pick:red|blue|gold|green|white|violet}",
-        "when": "showLucky"
+        "when": "showLucky",
+        "group": "fortune-cookie-3"
       },
       {
         "kind": "text",
@@ -209,13 +218,25 @@
         "lineHeight": 1.25,
         "letterSpacing": 0,
         "y": 412,
-        "text": "{{footer}}"
+        "text": "{{footer}}",
+        "group": "fortune-cookie-3"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "fortune-cookie-1": {
+        "name": "FORTUNE"
+      },
+      "fortune-cookie-2": {
+        "name": "Good news arrives before the"
+      },
+      "fortune-cookie-3": {
+        "name": "LUCKY NUMBERS"
+      }
     }
   }
 }

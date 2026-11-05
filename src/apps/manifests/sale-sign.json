@@ -52,7 +52,8 @@
         "fill": "solid",
         "stroke": 0,
         "radius": 0,
-        "when": "dark"
+        "when": "dark",
+        "group": "sale-sign-1"
       },
       {
         "kind": "shape",
@@ -66,7 +67,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "when": "!dark"
+        "when": "!dark",
+        "group": "sale-sign-2"
       },
       {
         "kind": "shape",
@@ -80,7 +82,8 @@
         "fill": "solid",
         "stroke": 0,
         "radius": 0,
-        "when": "!dark"
+        "when": "!dark",
+        "group": "sale-sign-2"
       },
       {
         "kind": "shape",
@@ -94,7 +97,8 @@
         "fill": "solid",
         "stroke": 0,
         "radius": 0,
-        "when": "!dark"
+        "when": "!dark",
+        "group": "sale-sign-2"
       },
       {
         "kind": "text",
@@ -112,7 +116,8 @@
         "lineHeight": 1,
         "letterSpacing": 0,
         "text": "{{message}}",
-        "when": "!dark"
+        "when": "!dark",
+        "group": "sale-sign-2"
       },
       {
         "kind": "shape",
@@ -126,7 +131,8 @@
         "fill": "solid",
         "stroke": 0,
         "radius": 0,
-        "when": "!dark"
+        "when": "!dark",
+        "group": "sale-sign-2"
       },
       {
         "kind": "shape",
@@ -140,7 +146,8 @@
         "fill": "solid",
         "stroke": 0,
         "radius": 0,
-        "when": "!dark"
+        "when": "!dark",
+        "group": "sale-sign-2"
       },
       {
         "kind": "text",
@@ -158,7 +165,8 @@
         "lineHeight": 1.1,
         "letterSpacing": 0,
         "text": "{{subline}}",
-        "when": "!dark"
+        "when": "!dark",
+        "group": "sale-sign-2"
       },
       {
         "kind": "text",
@@ -176,7 +184,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "text": "{{note}}",
-        "when": "!dark"
+        "when": "!dark",
+        "group": "sale-sign-2"
       },
       {
         "kind": "shape",
@@ -190,7 +199,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "when": "!dark"
+        "when": "!dark",
+        "group": "sale-sign-2"
       },
       {
         "kind": "shape",
@@ -204,7 +214,8 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "when": "dark"
+        "when": "dark",
+        "group": "sale-sign-2"
       },
       {
         "kind": "shape",
@@ -218,7 +229,8 @@
         "fill": "solid",
         "stroke": 0,
         "radius": 0,
-        "when": "dark"
+        "when": "dark",
+        "group": "sale-sign-2"
       },
       {
         "kind": "shape",
@@ -232,7 +244,8 @@
         "fill": "solid",
         "stroke": 0,
         "radius": 0,
-        "when": "dark"
+        "when": "dark",
+        "group": "sale-sign-2"
       },
       {
         "kind": "text",
@@ -250,7 +263,8 @@
         "lineHeight": 1,
         "letterSpacing": 0,
         "text": "{{message}}",
-        "when": "dark"
+        "when": "dark",
+        "group": "sale-sign-2"
       },
       {
         "kind": "shape",
@@ -264,7 +278,8 @@
         "fill": "solid",
         "stroke": 0,
         "radius": 0,
-        "when": "dark"
+        "when": "dark",
+        "group": "sale-sign-2"
       },
       {
         "kind": "shape",
@@ -278,7 +293,8 @@
         "fill": "solid",
         "stroke": 0,
         "radius": 0,
-        "when": "dark"
+        "when": "dark",
+        "group": "sale-sign-2"
       },
       {
         "kind": "text",
@@ -296,7 +312,8 @@
         "lineHeight": 1.1,
         "letterSpacing": 0,
         "text": "{{subline}}",
-        "when": "dark"
+        "when": "dark",
+        "group": "sale-sign-2"
       },
       {
         "kind": "text",
@@ -314,7 +331,8 @@
         "lineHeight": 1.2,
         "letterSpacing": 0,
         "text": "{{note}}",
-        "when": "dark"
+        "when": "dark",
+        "group": "sale-sign-2"
       },
       {
         "kind": "shape",
@@ -328,13 +346,22 @@
         "fill": "solid",
         "stroke": 3,
         "radius": 0,
-        "when": "dark"
+        "when": "dark",
+        "group": "sale-sign-2"
       }
     ],
     "print": {
       "heat": 0,
       "copies": 1,
       "darkness": 128
+    },
+    "sections": {
+      "sale-sign-1": {
+        "name": "Frame and background"
+      },
+      "sale-sign-2": {
+        "name": "SALE"
+      }
     }
   }
 }
