@@ -1,0 +1,281 @@
+{
+  "id": "scoreboard",
+  "version": 1,
+  "name": "Score sheet",
+  "hint": "Tally the game, crown the winner",
+  "fields": [
+    {
+      "key": "game",
+      "label": "Game",
+      "type": "text",
+      "default": "GAME NIGHT"
+    },
+    {
+      "key": "round",
+      "label": "Round",
+      "type": "text",
+      "default": "FINAL"
+    },
+    {
+      "key": "players",
+      "label": "Players",
+      "type": "list",
+      "default": [
+        {
+          "name": "Aki",
+          "points": 42
+        },
+        {
+          "name": "Ben",
+          "points": 37
+        },
+        {
+          "name": "Chika",
+          "points": 51
+        },
+        {
+          "name": "Dan",
+          "points": 28
+        },
+        {
+          "name": "Emi",
+          "points": 33
+        }
+      ],
+      "columns": [
+        {
+          "key": "name",
+          "label": "Player",
+          "type": "text"
+        },
+        {
+          "key": "points",
+          "label": "Points",
+          "type": "number"
+        }
+      ],
+      "format": "{name:<20}{points:>8}",
+      "max": 6
+    },
+    {
+      "key": "winner",
+      "label": "Winner",
+      "type": "text",
+      "default": "Chika"
+    },
+    {
+      "key": "note",
+      "label": "Note",
+      "type": "text",
+      "default": "Rematch next Friday"
+    }
+  ],
+  "doc": {
+    "version": 1,
+    "name": "Score sheet",
+    "landscape": false,
+    "length": 600,
+    "autoLength": true,
+    "endSpace": 96,
+    "elements": [
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 43,
+        "rotation": 0,
+        "invert": false,
+        "font": "Archivo Black",
+        "size": 34,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 16,
+        "text": "{{game}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "VT323",
+        "size": 24,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 64,
+        "text": "{date}  ROUND: {{round}}"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 8,
+        "rotation": 0,
+        "invert": false,
+        "shape": "dashes",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 104
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 32,
+        "rotation": 0,
+        "invert": false,
+        "font": "VT323",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "y": 120,
+        "text": "PLAYER                   PTS"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 188,
+        "rotation": 0,
+        "invert": false,
+        "font": "VT323",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "y": 156,
+        "text": "{{players}}"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 8,
+        "rotation": 0,
+        "invert": false,
+        "shape": "dashes",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 352
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 33,
+        "rotation": 0,
+        "invert": false,
+        "font": "Archivo Black",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 368,
+        "text": "TOTAL"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 33,
+        "rotation": 0,
+        "invert": false,
+        "font": "Archivo Black",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "right",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 368,
+        "text": "{{sum:players.points}}"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 104,
+        "rotation": 0,
+        "invert": false,
+        "shape": "rect",
+        "fill": "none",
+        "stroke": 3,
+        "radius": 0,
+        "y": 416
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "VT323",
+        "size": 24,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 426,
+        "text": "WINNER"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 48,
+        "rotation": 0,
+        "invert": false,
+        "font": "Permanent Marker",
+        "size": 40,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "y": 458,
+        "text": "{{winner}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 38,
+        "rotation": 0,
+        "invert": false,
+        "font": "Caveat",
+        "size": 30,
+        "weight": 700,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 532,
+        "text": "{{note}}",
+        "when": "note"
+      }
+    ],
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128
+    }
+  }
+}

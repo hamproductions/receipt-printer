@@ -1,0 +1,194 @@
+{
+  "id": "thank-you",
+  "version": 1,
+  "name": "Thank-you card",
+  "hint": "Say it on paper",
+  "fields": [
+    {
+      "key": "to",
+      "label": "To",
+      "type": "text",
+      "default": "Sam"
+    },
+    {
+      "key": "heading",
+      "label": "Heading",
+      "type": "text",
+      "default": "THANK YOU"
+    },
+    {
+      "key": "message",
+      "label": "Message",
+      "type": "longtext",
+      "default": "For the coffee, the late\nnight help, and for being\nexactly you."
+    },
+    {
+      "key": "signoff",
+      "label": "Sign-off",
+      "type": "text",
+      "default": "With love,"
+    },
+    {
+      "key": "from",
+      "label": "From",
+      "type": "text",
+      "default": "Alex"
+    }
+  ],
+  "doc": {
+    "version": 1,
+    "name": "Thank-you card",
+    "landscape": false,
+    "length": 600,
+    "autoLength": true,
+    "endSpace": 96,
+    "elements": [
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 16,
+        "shape": "zigzag",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 0
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 41,
+        "font": "Caveat",
+        "size": 34,
+        "weight": 700,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "y": 28,
+        "text": "To {{to}},"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 57,
+        "font": "Archivo Black",
+        "size": 52,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.1,
+        "letterSpacing": 0,
+        "y": 80,
+        "text": "{{heading}}"
+      },
+      {
+        "kind": "shape",
+        "x": 96,
+        "w": 192,
+        "rotation": 0,
+        "invert": false,
+        "h": 12,
+        "shape": "scallop",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 146
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 113,
+        "font": "Caveat",
+        "size": 30,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 170,
+        "text": "{{message}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 38,
+        "font": "Caveat",
+        "size": 30,
+        "weight": 400,
+        "italic": false,
+        "align": "right",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 298,
+        "text": "{{signoff}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 43,
+        "font": "Permanent Marker",
+        "size": 34,
+        "weight": 400,
+        "italic": false,
+        "align": "right",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 338,
+        "text": "{{from}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 28,
+        "font": "VT323",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 392,
+        "text": "{date}"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 16,
+        "shape": "zigzag",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 430
+      }
+    ],
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128
+    }
+  }
+}

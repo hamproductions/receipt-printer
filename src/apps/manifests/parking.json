@@ -1,0 +1,359 @@
+{
+  "id": "parking",
+  "version": 1,
+  "name": "Parking ticket",
+  "hint": "A very official fine for your day",
+  "fields": [
+    {
+      "key": "lot",
+      "label": "Lot name",
+      "type": "text",
+      "default": "MOONLIGHT GARAGE"
+    },
+    {
+      "key": "plate",
+      "label": "Plate",
+      "type": "text",
+      "default": "NICE 4 U"
+    },
+    {
+      "key": "timeIn",
+      "label": "Time in",
+      "type": "time",
+      "default": "09:12"
+    },
+    {
+      "key": "timeOut",
+      "label": "Time out",
+      "type": "time",
+      "default": "17:48"
+    },
+    {
+      "key": "fees",
+      "label": "Fees",
+      "type": "list",
+      "default": [
+        {
+          "item": "First hour",
+          "amount": 300
+        },
+        {
+          "item": "Extra hours x7",
+          "amount": 1400
+        },
+        {
+          "item": "Crooked parking",
+          "amount": 500
+        },
+        {
+          "item": "Vibes surcharge",
+          "amount": 120
+        }
+      ],
+      "columns": [
+        {
+          "key": "item",
+          "label": "Fee",
+          "type": "text"
+        },
+        {
+          "key": "amount",
+          "label": "Amount",
+          "type": "number"
+        }
+      ],
+      "format": "{item:<18}¥{amount:>7}",
+      "max": 6
+    },
+    {
+      "key": "note",
+      "label": "Fine print",
+      "type": "text",
+      "default": "Lost ticket fee: one snack"
+    }
+  ],
+  "doc": {
+    "version": 1,
+    "name": "Parking ticket",
+    "landscape": false,
+    "length": 600,
+    "autoLength": true,
+    "endSpace": 96,
+    "elements": [
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": true,
+        "h": 39,
+        "font": "Archivo Black",
+        "size": 30,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.3,
+        "letterSpacing": 0,
+        "y": 8,
+        "text": "PARKING TICKET"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 34,
+        "font": "Bungee",
+        "size": 28,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "y": 60,
+        "text": "{{lot}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 30,
+        "font": "VT323",
+        "size": 24,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 102,
+        "text": "{date}  TICKET #{num:10000-99999}"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 8,
+        "shape": "dashes",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 140
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 28,
+        "font": "VT323",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 158,
+        "text": "LICENSE PLATE"
+      },
+      {
+        "kind": "shape",
+        "x": 40,
+        "w": 304,
+        "h": 72,
+        "rotation": 0,
+        "invert": false,
+        "shape": "rect",
+        "fill": "none",
+        "stroke": 4,
+        "radius": 8,
+        "y": 190
+      },
+      {
+        "kind": "text",
+        "x": 40,
+        "w": 304,
+        "rotation": 0,
+        "invert": false,
+        "h": 48,
+        "font": "Rubik Mono One",
+        "size": 40,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "y": 202,
+        "text": "{{plate}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 62,
+        "font": "VT323",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "y": 278,
+        "text": "TIME IN\n{{timeIn}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 62,
+        "font": "VT323",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "right",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "y": 278,
+        "text": "TIME OUT\n{{timeOut}}"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 8,
+        "shape": "dashes",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 350
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 125,
+        "font": "VT323",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "y": 368,
+        "text": "{{fees}}"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 8,
+        "shape": "dashes",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 503
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 35,
+        "font": "Archivo Black",
+        "size": 28,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 521,
+        "text": "TOTAL"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 35,
+        "font": "Archivo Black",
+        "size": 28,
+        "weight": 400,
+        "italic": false,
+        "align": "right",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 521,
+        "text": "¥{{sum:fees.amount}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 28,
+        "font": "VT323",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 568,
+        "text": "{{note}}",
+        "when": "note"
+      },
+      {
+        "kind": "barcode",
+        "x": 0,
+        "w": 384,
+        "h": 72,
+        "rotation": 0,
+        "invert": false,
+        "data": "{{plate}}-{num:1000-9999}",
+        "format": "CODE128",
+        "showText": false,
+        "y": 606
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "rotation": 0,
+        "invert": false,
+        "h": 28,
+        "font": "VT323",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 688,
+        "text": "KEEP THIS TICKET WITH YOU"
+      }
+    ],
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128
+    }
+  }
+}

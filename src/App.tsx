@@ -1,954 +1,1145 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
-import {
-  defaultReceipt,
-  drawReceipt,
-  createPrinterCanvas,
-  fitLogoPosition,
-  hasLocalFont,
-  MAX_FEED_BEFORE_CUT,
-  MAX_HEATING,
-  MAX_LOGO_OFFSET_X,
-  MAX_LOGO_OFFSET_Y,
-  trimLogo,
-  MAX_PADDING,
-  MAX_PRINT_WIDTH,
-  MIN_PRINT_WIDTH,
-  type LogoAsset,
-  type PrintRotation,
-  type ReceiptState
-} from './receipt';
-import {
-  canvasToBitmap,
-  concat,
-  encodeBitmap,
-  heating as heatingCommand,
-  isBluetoothSupported,
-  isSerialSupported,
-  isUsbSupported,
-  requestBluetoothPrinter,
-  requestSerialPrinter,
-  requestUsbPrinter,
-  sendParts,
-  textTestPage,
-  type CutMode,
-  type Transport
-} from 'escpos-web-print';
-import { Button as ParkButton } from './components/ui/button';
-import {
-  createPersistedEditor,
-  createPreset,
-  DEFAULT_PADDING_AFTER,
-  DEFAULT_PADDING_BEFORE,
-  DEFAULT_SIDE_MARGIN,
-  MAX_LOGO_DATA_URL_LENGTH,
-  parsePresetFile,
-  readPersistedEditor,
-  readPresets,
-  writePersistedEditor,
-  writePresets,
-  type ConnectionType,
-  type Preset
-} from './persistence';
-import { BUILT_IN_PRESETS } from './presets';
-import './styles.css';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { Transport } from 'escpos-web-print';
+import { DocInspector, ElementInspector } from './components/Inspector';
+import { BLOCKS, Palette, type Block } from './components/Palette';
+import { PresetDrawer } from './components/PresetDrawer';
+import { Layers } from './components/Layers';
+import { MultiInspector, type AlignMode } from './components/MultiInspector';
+import { Stage, type Magnet, type Patch, type PatchSet } from './components/Stage';
+import { cloneElement, createElement, docSize, PAPER_DOTS, type Doc, type Element, type ImageElement, type TextElement } from './doc';
+import { addCustomFont, ensureFonts } from './fonts';
+import { buildAgentTools, type AgentApi } from './agentTools';
+import { useHistory } from './history';
+import { loadCurrent, loadPrinted, loadShelf, parseDocFile, recordPrinted, saveCurrent, savePrinted, saveShelf, type PrintedItem, type ShelfItem } from './persistence';
+import { appTokens, fontSpecs, layOut, loadImages } from './prepare';
+import { defaults, expandBindings } from './apps/bindings';
+import { findApp } from './apps/registry';
+import { AppPanel } from './components/AppPanel';
+import { PRESETS } from './presets';
+import type { TokenContext } from './tokens';
+import { registerTools } from './webmcp';
+import { appLink, readDeepLink, shareLink } from './deeplink';
+import { bytes, connect, encode, loadSpeed, MAX_PRINT_ROWS, saveSpeed, send, SPEEDS, supported, testPage, type Connection, type Speed } from './printer';
+import { barcodeError, frameInset, imageAspect, imageSize, textInkSpan, wholePixelSize, inkCoverage, invalidateLayers, loadImage, renderDoc } from './render';
 
-type ImportResponse = {
-  event?: {
-    eventName: string;
-    venue: string;
-    address: string;
-    googleMapsLink: string;
-    eventDatetime: string;
-    eventDeadline: string;
-    open: boolean | null;
-    maxCapacity: number | null;
+type Status = { kind: 'idle' | 'busy' | 'error' | 'done'; message: string };
+type Panel = 'blocks' | 'paper' | 'edit';
+
+const CONNECTIONS: { value: Connection; label: string; detail: string }[] = [
+  { value: 'bluetooth', label: 'Bluetooth', detail: 'No pairing needed. Turn the printer on and keep it close.' },
+  { value: 'usb', label: 'USB cable', detail: 'For printers that show up as a USB printer.' },
+  { value: 'serial', label: 'Serial port', detail: 'Printers paired with this computer, or USB serial adapters.' }
+];
+
+function download(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function fileName(doc: Doc, extension: string) {
+  return `${(doc.name || 'inkless').replace(/[^\p{L}\p{N}_-]+/gu, '-').toLowerCase()}.${extension}`;
+}
+
+const MONO_SHARE = 0.985;
+
+function isMonochrome(ctx: CanvasRenderingContext2D, width: number, height: number) {
+  const data = ctx.getImageData(0, 0, width, height).data;
+  let extreme = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const luma = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    if (luma < 48 || luma > 207) {
+      extreme += 1;
+    }
+  }
+  return extreme / (data.length / 4) >= MONO_SHARE;
+}
+
+function readImageFile(file: File) {
+  return new Promise<{ src: string; mono: boolean }>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read that file.'));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error('That file is not an image this browser can open.'));
+      image.onload = () => {
+        const probe = document.createElement('canvas');
+        probe.width = image.naturalWidth;
+        probe.height = image.naturalHeight;
+        const probeCtx = probe.getContext('2d', { willReadFrequently: true })!;
+        probeCtx.fillStyle = '#fff';
+        probeCtx.fillRect(0, 0, probe.width, probe.height);
+        probeCtx.drawImage(image, 0, 0);
+        const mono = isMonochrome(probeCtx, probe.width, probe.height);
+        const scale = Math.min(1, (mono ? 2048 : 1024) / Math.max(image.naturalWidth, image.naturalHeight));
+        if (scale === 1) {
+          resolve({ src: mono ? probe.toDataURL('image/png') : probe.toDataURL('image/jpeg', 0.9), mono });
+          return;
+        }
+        const target = document.createElement('canvas');
+        target.width = Math.round(image.naturalWidth * scale);
+        target.height = Math.round(image.naturalHeight * scale);
+        const ctx = target.getContext('2d')!;
+        ctx.imageSmoothingEnabled = !mono;
+        ctx.drawImage(probe, 0, 0, target.width, target.height);
+        resolve({ src: mono ? target.toDataURL('image/png') : target.toDataURL('image/jpeg', 0.9), mono });
+      };
+      image.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function detachApp(doc: Doc, tokens: TokenContext): Doc {
+  const shown = layOut(doc, tokens).elements.map((element) => element.id);
+  const bind = (value: string) => (tokens.values && tokens.fields ? expandBindings(value, tokens.values, tokens.fields) : value);
+  return {
+    ...doc,
+    app: undefined,
+    elements: doc.elements
+      .filter((element) => shown.includes(element.id))
+      .map((element) => {
+        const { when: _when, ...rest } = element;
+        if (rest.kind === 'text') {
+          return { ...rest, text: bind(rest.text) } as Element;
+        }
+        if (rest.kind === 'qr' || rest.kind === 'barcode') {
+          return { ...rest, data: bind(rest.data) } as Element;
+        }
+        return rest as Element;
+      })
   };
-  attendeeNumber?: string | number | null;
-  error?: string;
-};
+}
+
+function thumbnailOf(source: HTMLCanvasElement) {
+  const width = 120;
+  const target = document.createElement('canvas');
+  target.width = width;
+  target.height = Math.max(1, Math.round((source.height / source.width) * width));
+  const ctx = target.getContext('2d')!;
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(source, 0, 0, target.width, target.height);
+  return target.toDataURL('image/png');
+}
+
+function selectionBounds(elements: Element[]) {
+  const x = Math.min(...elements.map((element) => element.x));
+  const y = Math.min(...elements.map((element) => element.y));
+  return { x, y, w: Math.max(...elements.map((element) => element.x + element.w)) - x, h: Math.max(...elements.map((element) => element.y + element.h)) - y };
+}
+
+function loadedFaces() {
+  let count = 0;
+  document.fonts.forEach((face) => {
+    if (face.status === 'loaded') {
+      count += 1;
+    }
+  });
+  return count;
+}
+
+function errorMessage(error: unknown) {
+  if (error instanceof DOMException && error.name === 'NotFoundError') {
+    return 'No printer was chosen.';
+  }
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return 'Printing stopped.';
+  }
+  return error instanceof Error ? error.message : String(error);
+}
 
 export function App() {
-  const [receipt, setReceipt] = useState<ReceiptState>(defaultReceipt);
-  const [referenceLogo, setReferenceLogo] = useState<LogoAsset | null>(null);
-  const [uploadedLogo, setUploadedLogo] = useState<LogoAsset | null>(null);
-  const [fontFileName, setFontFileName] = useState(() =>
-    hasLocalFont('MS Gothic') || hasLocalFont('ＭＳ ゴシック') ? '使用中: MS ゴシック' : '使用中: IBM Plex Sans（この端末にMS ゴシックがないため代替）'
-  );
-  const [importUrl, setImportUrl] = useState('');
-  const [includeAttendeeSerial, setIncludeAttendeeSerial] = useState(false);
-  const [importing, setImporting] = useState(false);
-  const [importMessage, setImportMessage] = useState('');
-  const [importError, setImportError] = useState('');
-  const [printWidth, setPrintWidth] = useState(384);
-  const [rasterMargin, setRasterMargin] = useState(DEFAULT_SIDE_MARGIN);
-  const [paddingBefore, setPaddingBefore] = useState(DEFAULT_PADDING_BEFORE);
-  const [paddingAfter, setPaddingAfter] = useState(DEFAULT_PADDING_AFTER);
-  const [cutMode, setCutMode] = useState<CutMode>('none');
-  const [feedBeforeCut, setFeedBeforeCut] = useState(0);
-  const [heating, setHeating] = useState(0);
-  const [dither, setDither] = useState(true);
-  const [printRotation, setPrintRotation] = useState<PrintRotation>('clockwise');
-  const [chunkSize, setChunkSize] = useState(180);
-  const [bluetoothName, setBluetoothName] = useState('');
-  const [connectionType, setConnectionType] = useState<ConnectionType>('bluetooth');
-  const [printerConnection, setPrinterConnection] = useState<Transport | null>(null);
-  const [printerMessage, setPrinterMessage] = useState(IDLE_PRINTER_MESSAGE);
-  const [printerError, setPrinterError] = useState('');
-  const [printing, setPrinting] = useState(false);
-  const [exportError, setExportError] = useState('');
-  const [fontReady, setFontReady] = useState(false);
-  const [restored, setRestored] = useState(false);
-  const [persistenceMessage, setPersistenceMessage] = useState('');
-  const [savedPresets, setSavedPresets] = useState<Preset[]>(readPresets);
-  const [selectedPresetId, setSelectedPresetId] = useState(BUILT_IN_PRESETS[0].id);
-  const [presetName, setPresetName] = useState('');
-  const [presetMessage, setPresetMessage] = useState('');
-  const [presetError, setPresetError] = useState('');
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const printAbortRef = useRef<AbortController | null>(null);
-  const connectionSupported = { bluetooth: isBluetoothSupported(), usb: isUsbSupported(), serial: isSerialSupported() }[connectionType];
-  const activeLogo = receipt.logoMode === 'upload' ? uploadedLogo : referenceLogo;
-  const offkaiImportAvailable = import.meta.env.DEV || import.meta.env.VITE_STATIC_DEPLOY !== 'true';
+  const history = useHistory<Doc>(() => loadCurrent() ?? PRESETS[1].build());
+  const { doc, set } = history;
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const selectedId = selectedIds.length === 1 ? selectedIds[0] : null;
+  const setSelectedId = useCallback((id: string | null) => setSelectedIds(id ? [id] : []), []);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [croppingId, setCroppingId] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+  const [seed, setSeed] = useState(1);
+  const [now, setNow] = useState(() => new Date());
+  const [printer, setPrinter] = useState<Transport | null>(null);
+  const [status, setStatus] = useState<Status>({ kind: 'idle', message: '' });
+  const [feeding, setFeeding] = useState<number | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [showAllDevices, setShowAllDevices] = useState(false);
+  const [shelf, setShelf] = useState<ShelfItem[]>(() => loadShelf());
+  const [printed, setPrinted] = useState<PrintedItem[]>(() => loadPrinted());
+  const [speed, setSpeed] = useState<Speed>(() => loadSpeed());
+  const [magnet, setMagnet] = useState<Magnet>(() => {
+    try {
+      const value = localStorage.getItem('inkless:magnet');
+      return value === 'off' || value === 'grid' ? value : 'objects';
+    } catch {
+      return 'objects';
+    }
+  });
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
+  const [ditherNew, setDitherNew] = useState(() => {
+    try {
+      return localStorage.getItem('inkless:dither-new') === 'on';
+    } catch {
+      return false;
+    }
+  });
+  const [panning, setPanning] = useState(false);
+  const spaceDown = useRef(false);
+  const pan = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
+  const scaleRef = useRef(1);
+  const [panel, setPanel] = useState<Panel>('paper');
+  const [zoom, setZoom] = useState<number | null>(null);
+  const [matWidth, setMatWidth] = useState(600);
+  const [saveWarning, setSaveWarning] = useState(false);
+  const matRef = useRef<HTMLDivElement>(null);
+  const imageInput = useRef<HTMLInputElement>(null);
+  const fontInput = useRef<HTMLInputElement>(null);
+  const jsonInput = useRef<HTMLInputElement>(null);
+  const imageTarget = useRef<string | null>(null);
+  const abort = useRef<AbortController | null>(null);
+  const longConfirmed = useRef(false);
+  const printAfterConnect = useRef(false);
+  const [link, setLink] = useState<string | null>(null);
+
+  const tokens = useMemo(() => appTokens(doc, { seed, copy: 1, now }), [doc, seed, now]);
+  const laid = useMemo(() => layOut(doc, tokens), [doc, tokens, tick]);
+  const size = docSize(laid);
+  const output = useMemo(() => renderDoc(laid, tokens), [laid, tokens]);
+  const coverage = useMemo(() => inkCoverage(output), [output]);
+  const spans = useMemo(() => Object.fromEntries(laid.elements.filter((element) => element.kind === 'text').map((element) => [element.id, textInkSpan(element as TextElement, tokens)])), [laid, tokens]);
+  const selected = laid.elements.find((element) => element.id === selectedId) ?? null;
+  const fitZoom = Math.max(0.3, Math.min(3, (matWidth - 72) / size.width));
+  const scale = zoom ?? fitZoom;
+  scaleRef.current = scale;
 
   useEffect(() => {
-    const stored = readPersistedEditor();
-    if (stored) {
-      setReceipt(stored.receipt);
-      setPrintWidth(stored.settings.printWidth);
-      setRasterMargin(stored.settings.sideMargin);
-      setPaddingBefore(stored.settings.paddingBefore);
-      setPaddingAfter(stored.settings.trailingPadding);
-      setCutMode(stored.settings.paperCut);
-      setFeedBeforeCut(stored.settings.feedBeforeCut);
-      setHeating(stored.settings.heating);
-      setDither(stored.settings.dither);
-      setPrintRotation(stored.settings.printRotation);
-      setChunkSize(stored.settings.chunkSize);
-      setBluetoothName(stored.settings.bluetoothName);
-      setConnectionType(stored.settings.connectionType);
-      setIncludeAttendeeSerial(stored.settings.includeAttendeeSerial);
-      if (stored.logo) {
-        const image = new Image();
-        image.onload = () => {
-          setUploadedLogo({ ...trimLogo(image), dataUrl: stored.logo?.dataUrl });
-        };
-        image.onerror = () => {
-          setReceipt((current) => ({ ...current, logoMode: 'reference' }));
-        };
-        image.src = stored.logo.dataUrl;
-      }
-    }
-    setRestored(true);
-  }, []);
-
-  useEffect(() => {
-    if (!document.fonts) {
-      setFontReady(true);
-      return;
-    }
-    let active = true;
-    Promise.all([
-      document.fonts.load('400 60px "IBM Plex Sans Local"'),
-      document.fonts.load('700 60px "IBM Plex Sans Local"'),
-      document.fonts.load('400 60px "IBM Plex Sans JP Local"'),
-      document.fonts.load('700 60px "IBM Plex Sans JP Local"')
-    ]).finally(() => {
-      if (active) {
-        setFontReady(true);
+    let cancelled = false;
+    const before = loadedFaces();
+    Promise.all([ensureFonts(fontSpecs(doc)), loadImages(doc)]).then(() => {
+      if (!cancelled) {
+        if (loadedFaces() !== before) {
+          invalidateLayers();
+        }
+        setTick((value) => value + 1);
       }
     });
     return () => {
-      active = false;
+      cancelled = true;
+    };
+  }, [doc]);
+
+  useEffect(() => {
+    const bump = () => {
+      invalidateLayers();
+      setTick((value) => value + 1);
+    };
+    document.fonts.addEventListener('loadingdone', bump);
+    const timer = setInterval(() => setNow(new Date()), 30_000);
+    return () => {
+      document.fonts.removeEventListener('loadingdone', bump);
+      clearInterval(timer);
     };
   }, []);
 
   useEffect(() => {
-    const image = new Image();
-    image.onload = () => {
-      setReferenceLogo({
-        source: image,
-        width: image.naturalWidth,
-        height: image.naturalHeight,
-        crop: { x: 20, y: 220, width: 520, height: 300 }
-      });
-    };
-    image.src = `${import.meta.env.BASE_URL}reference/ikizuraibu_2L.png`;
-  }, []);
+    const timer = setTimeout(() => setSaveWarning(!saveCurrent(doc)), 400);
+    return () => clearTimeout(timer);
+  }, [doc]);
 
   useEffect(() => {
-    if (fontReady && canvasRef.current) {
-      drawReceipt(canvasRef.current, receipt, activeLogo);
-    }
-  }, [activeLogo, fontReady, receipt]);
-
-  useEffect(() => {
-    if (!restored) {
-      return;
-    }
-    const saved = writePersistedEditor(
-      createPersistedEditor(
-        receipt,
-        {
-          printWidth,
-          sideMargin: rasterMargin,
-          paddingBefore,
-          trailingPadding: paddingAfter,
-          paperCut: cutMode,
-          feedBeforeCut,
-          heating,
-          dither,
-          printRotation,
-          chunkSize,
-          bluetoothName,
-          connectionType,
-          includeAttendeeSerial
-        },
-        uploadedLogo
-      )
-    );
-    const logoTooLarge = Boolean(uploadedLogo?.dataUrl && uploadedLogo.dataUrl.length > MAX_LOGO_DATA_URL_LENGTH);
-    setPersistenceMessage(
-      saved
-        ? logoTooLarge
-          ? '本文を自動保存済み（ロゴは容量超過）'
-          : '自動保存済み'
-        : '保存容量不足のため自動保存できません'
-    );
-  }, [bluetoothName, chunkSize, connectionType, cutMode, dither, feedBeforeCut, heating, includeAttendeeSerial, paddingAfter, paddingBefore, printWidth, rasterMargin, receipt, restored, printRotation, uploadedLogo]);
-
-  function updateReceipt<K extends keyof ReceiptState>(key: K, value: ReceiptState[K]) {
-    setReceipt((current) => ({ ...current, [key]: value }));
-  }
-
-  function updateNotice(index: number, value: string) {
-    setReceipt((current) => ({
-      ...current,
-      notices: current.notices.map((notice, noticeIndex) => (noticeIndex === index ? value : notice))
-    }));
-  }
-
-  function updatePrintWidth(value: number) {
-    const next = Number.isFinite(value)
-      ? Math.max(MIN_PRINT_WIDTH, Math.min(MAX_PRINT_WIDTH, Math.round(value / 8) * 8))
-      : 384;
-    setPrintWidth(next);
-    setRasterMargin((current) => Math.min(current, Math.floor((next - 8) / 2)));
-  }
-
-  function updateRasterMargin(value: number) {
-    const next = Number.isFinite(value) ? Math.max(0, Math.round(value)) : 0;
-    setRasterMargin(Math.min(next, Math.floor((printWidth - 8) / 2)));
-  }
-
-  function updateFeedBeforeCut(value: number) {
-    const next = Number.isFinite(value) ? Math.max(0, Math.min(MAX_FEED_BEFORE_CUT, Math.round(value))) : 0;
-    setFeedBeforeCut(next);
-  }
-
-  async function applyPreset(nextReceipt: ReceiptState, logoDataUrl?: string) {
-    if (!logoDataUrl) {
-      setReceipt({ ...nextReceipt, logoMode: 'reference' });
-      return;
-    }
-    const logo = await loadLogo(logoDataUrl);
-    setUploadedLogo(logo);
-    setReceipt({ ...nextReceipt, logoMode: 'upload' });
-  }
-
-  async function handleLoadPreset() {
-    setPresetMessage('');
-    setPresetError('');
-    const builtIn = BUILT_IN_PRESETS.find((preset) => preset.id === selectedPresetId);
-    const saved = savedPresets.find((preset) => preset.id === selectedPresetId);
-    try {
-      if (builtIn) {
-        if (builtIn.logoUrl) {
-          const logoDataUrl = await fetchDataUrl(builtIn.logoUrl).catch(() => null);
-          if (!logoDataUrl) {
-            setReceipt((current) => ({ ...builtIn.receipt, logoMode: current.logoMode, logoOffsetX: current.logoOffsetX, logoOffsetY: current.logoOffsetY, logoScale: current.logoScale }));
-            setPresetError('プリセットのロゴ画像が見つからないため、テキストだけ読み込みました。');
-            return;
-          }
-          await applyPreset(builtIn.receipt, logoDataUrl);
-        } else {
-          await applyPreset(builtIn.receipt);
-        }
-        setPresetMessage(`「${builtIn.name}」を読み込みました`);
-      } else if (saved) {
-        await applyPreset(saved.receipt, saved.logo?.dataUrl);
-        setPresetName(saved.name);
-        setPresetMessage(`「${saved.name}」を読み込みました`);
-      }
-    } catch {
-      setPresetError('プリセットを読み込めませんでした。');
-    }
-  }
-
-  function handleSavePreset(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setPresetMessage('');
-    setPresetError('');
-    const name = presetName.trim();
-    if (!name) {
-      setPresetError('プリセット名を入力してください。');
-      return;
-    }
-    const existing = savedPresets.find((preset) => preset.name === name);
-    const preset = { ...createPreset(name, receipt, receipt.logoMode === 'upload' ? uploadedLogo : null), ...(existing ? { id: existing.id } : {}) };
-    const next = existing ? savedPresets.map((item) => (item.id === existing.id ? preset : item)) : [...savedPresets, preset];
-    if (!writePresets(next)) {
-      setPresetError('保存容量が不足しています。不要なプリセットを削除するか、ファイルに書き出してください。');
-      return;
-    }
-    setSavedPresets(next);
-    setSelectedPresetId(preset.id);
-    setPresetMessage(existing ? `「${name}」を上書きしました` : `「${name}」を保存しました`);
-  }
-
-  function handleDeletePreset() {
-    const target = savedPresets.find((preset) => preset.id === selectedPresetId);
+    const target = matRef.current;
     if (!target) {
       return;
     }
-    const next = savedPresets.filter((preset) => preset.id !== target.id);
-    if (!writePresets(next)) {
-      setPresetError('プリセットを削除できませんでした。');
-      return;
-    }
-    setSavedPresets(next);
-    setSelectedPresetId(BUILT_IN_PRESETS[0].id);
-    setPresetMessage(`「${target.name}」を削除しました`);
-  }
+    const observer = new ResizeObserver(([entry]) => setMatWidth(entry.contentRect.width));
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, []);
 
-  function handleExportPreset() {
-    const name = presetName.trim() || receipt.subtitle.trim() || 'preset';
-    const preset = createPreset(name, receipt, receipt.logoMode === 'upload' ? uploadedLogo : null);
-    downloadBlob(new Blob([JSON.stringify(preset)], { type: 'application/json' }), `${name.replace(/[\\/:*?"<>|]/gu, '_')}.json`);
-  }
-
-  async function handleImportPreset(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    setPresetMessage('');
-    setPresetError('');
-    if (!file) {
+  useEffect(() => {
+    const mat = matRef.current;
+    if (!mat) {
       return;
     }
-    const preset = parsePresetFile(await file.text());
-    if (!preset) {
-      setPresetError('プリセットファイルの形式が正しくありません。');
-      return;
-    }
-    const next = [...savedPresets.filter((item) => item.name !== preset.name), preset];
-    if (!writePresets(next)) {
-      setPresetError('保存容量が不足しています。不要なプリセットを削除してください。');
-      return;
-    }
-    setSavedPresets(next);
-    setSelectedPresetId(preset.id);
-    setPresetName(preset.name);
-    try {
-      await applyPreset(preset.receipt, preset.logo?.dataUrl);
-      setPresetMessage(`「${preset.name}」を読み込みました`);
-    } catch {
-      setPresetError('プリセットのロゴ画像を読み込めませんでした。');
-    }
-  }
-
-  function handleLogoUpload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-    const reader = new FileReader();
-    reader.onerror = () => setExportError('ロゴ画像を読み込めませんでした。');
-    reader.onload = () => {
-      if (typeof reader.result !== 'string') {
-        setExportError('ロゴ画像を読み込めませんでした。');
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) {
         return;
       }
-      const dataUrl = reader.result;
-      const image = new Image();
-      image.onload = () => {
-        const logo = { ...trimLogo(image), dataUrl };
-        setUploadedLogo(logo);
-        setReceipt((current) => ({ ...current, ...fitLogoPosition(), logoMode: 'upload' }));
-      };
-      image.onerror = () => setExportError('ロゴ画像を読み込めませんでした。');
-      image.src = dataUrl;
-    };
-    reader.readAsDataURL(file);
-  }
-
-  async function handleFontUpload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
-    try {
-      const font = new FontFace('ReceiptCustom', await file.arrayBuffer());
-      await font.load();
-      document.fonts.add(font);
-      updateReceipt('fontFamily', 'ReceiptCustom');
-      setFontFileName(file.name);
-      setExportError('');
-    } catch {
-      setExportError('フォントを読み込めませんでした。対応形式は woff / woff2 / ttf / ttc / otf です。');
-    }
-  }
-
-  async function handleImport(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!offkaiImportAvailable) {
-      setImportError('GitHub Pagesの静的公開版ではOffkai取込を利用できません。ローカル開発サーバーで実行してください。');
-      setImportMessage('');
-      return;
-    }
-    setImporting(true);
-    setImportError('');
-    setImportMessage('');
-    try {
-      const response = await fetch('/api/offkai-import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: importUrl, includeAttendeeSerial })
+      event.preventDefault();
+      const rect = mat.getBoundingClientRect();
+      const before = scaleRef.current;
+      const after = Math.max(0.3, Math.min(8, before * Math.exp(-event.deltaY * 0.0025)));
+      const pointX = event.clientX - rect.left + mat.scrollLeft;
+      const pointY = event.clientY - rect.top + mat.scrollTop;
+      scaleRef.current = after;
+      setZoom(after);
+      requestAnimationFrame(() => {
+        mat.scrollLeft = pointX * (after / before) - (event.clientX - rect.left);
+        mat.scrollTop = pointY * (after / before) - (event.clientY - rect.top);
       });
-      const payload = (await response.json()) as ImportResponse;
-      if (!response.ok || !payload.event) {
-        throw new Error(payload.error || 'Offkaiからイベント情報を取得できませんでした。');
+    };
+    const isTyping = (event: KeyboardEvent) => event.target instanceof Element && !!event.target.closest('input, textarea, select, [contenteditable]');
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code === 'Space' && !isTyping(event)) {
+        event.preventDefault();
+        spaceDown.current = true;
+        setPanning(true);
       }
-      const eventData = payload.event;
-      const nextValues: Partial<ReceiptState> = {
-        subtitle: eventData.eventName,
-        dateVenue: `${formatEventDate(eventData.eventDatetime)} ${eventData.venue}`
-      };
-      if (includeAttendeeSerial && payload.attendeeNumber !== null && payload.attendeeNumber !== undefined) {
-        nextValues.serial = String(payload.attendeeNumber);
+    };
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.code === 'Space') {
+        spaceDown.current = false;
+        setPanning(false);
       }
-      setReceipt((current) => ({ ...current, ...nextValues }));
-      setImportUrl('');
-      setImportMessage(
-        includeAttendeeSerial && payload.attendeeNumber !== null && payload.attendeeNumber !== undefined
-          ? 'イベント情報と整理番号を反映しました。'
-          : 'イベント情報を反映しました。整理番号は変更していません。'
+    };
+    mat.addEventListener('wheel', onWheel, { passive: false });
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      mat.removeEventListener('wheel', onWheel);
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, []);
+
+  const revealId = useRef<string | null>(null);
+  useEffect(() => {
+    if (revealId.current) {
+      document.querySelector(`[data-element-id="${revealId.current}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      revealId.current = null;
+    }
+  }, [selectedIds]);
+
+  const flash = useCallback((message: string, kind: Status['kind'] = 'done') => setStatus({ kind, message }), []);
+
+  const updateMany = useCallback(
+    (patches: PatchSet, group?: string) =>
+      set((current) => {
+        const byId = new Map(patches.map((item) => [item.id, item.patch]));
+        return { ...current, elements: current.elements.map((element) => (byId.has(element.id) ? ({ ...element, ...byId.get(element.id) } as Element) : element)) };
+      }, group),
+    [set]
+  );
+
+  const updateElement = useCallback(
+    (id: string, patch: Patch, group?: string) => set((current) => ({ ...current, elements: current.elements.map((element) => (element.id === id ? ({ ...element, ...patch } as Element) : element)) }), group),
+    [set]
+  );
+
+  const insert = useCallback(
+    (element: Element) => {
+      set((current) => ({ ...current, elements: [...current.elements, element] }));
+      revealId.current = element.id;
+      setSelectedId(element.id);
+      setPanel('paper');
+    },
+    [set, setSelectedId]
+  );
+
+  function placement(width: number, height: number, x?: number, y?: number) {
+    const across = doc.landscape ? size.height : size.width;
+    const cx = x ?? (doc.landscape ? size.width / 2 : across / 2);
+    const cy = y ?? (doc.landscape ? across / 2 : Math.max(height / 2 + 8, laid.elements.reduce((max, element) => Math.max(max, element.y + element.h), 0) + 16 + height / 2));
+    return {
+      x: Math.round(Math.max(0, Math.min(size.width - Math.min(width, size.width), cx - width / 2))),
+      y: Math.round(Math.max(0, cy - height / 2))
+    };
+  }
+
+  function addBlock(block: Block, x?: number, y?: number) {
+    const element = block.build(0, 0);
+    const width = Math.min(element.w, doc.landscape ? element.w : PAPER_DOTS);
+    insert({ ...element, w: width, ...placement(width, element.h, x, y) } as Element);
+    if (element.kind === 'image' && !element.src) {
+      imageTarget.current = element.id;
+      imageInput.current?.click();
+    }
+  }
+
+  async function addImage(file: File, x?: number, y?: number, targetId?: string | null) {
+    try {
+      const { src, mono } = await readImageFile(file);
+      await loadImage(src);
+      const look = mono
+        ? ({ dither: 'threshold', threshold: 128, pixelated: true, contrast: 0, brightness: 0, gamma: 1 } as const)
+        : ditherNew
+          ? ({ dither: 'floyd', contrast: 10 } as const)
+          : ({ dither: 'threshold', threshold: 128 } as const);
+      const empty = doc.elements.filter((element) => element.kind === 'image' && !element.src);
+      const fallback = empty.find((element) => selectedIds.includes(element.id)) ?? empty[0];
+      const target = (targetId ? doc.elements.find((element) => element.id === targetId) : null) ?? fallback;
+      if (target?.kind === 'image') {
+        updateElement(target.id, { src, ...look, ...(target.autoTrim ? { trim: true, cropZoom: 1, cropX: 0, cropY: 0 } : {}) });
+        setSelectedId(target.id);
+        if (mono) {
+          flash('Black-and-white image: printing it as is, with sharp pixels and no dithering.');
+        }
+        return;
+      }
+      const natural = imageSize(src) ?? { width: PAPER_DOTS, height: PAPER_DOTS };
+      const ratio = natural.width / natural.height;
+      const across = doc.landscape ? PAPER_DOTS * ratio : PAPER_DOTS;
+      const width = mono && natural.width <= across ? natural.width * Math.max(1, Math.floor(across / natural.width)) : Math.min(PAPER_DOTS, across);
+      const height = Math.round(width / ratio);
+      const element = { ...createElement('image', { x: 0, y: 0 }), src, w: Math.round(width), h: height, fit: mono ? 'stretch' : 'cover', ...look } as ImageElement;
+      if (mono) {
+        flash(`Black-and-white image: printing it as is at ${Math.round(width / natural.width)}× with sharp pixels and no dithering.`);
+      }
+      insert({ ...element, ...placement(element.w, element.h, x, y) });
+    } catch (error) {
+      flash(errorMessage(error), 'error');
+    }
+  }
+
+  function deleteSelected() {
+    if (!selectedIds.length) {
+      return;
+    }
+    set((current) => ({ ...current, elements: current.elements.filter((element) => !selectedIds.includes(element.id)) }));
+    setSelectedIds([]);
+  }
+
+  function duplicateSelected() {
+    if (!selectedIds.length) {
+      return;
+    }
+    const copies = doc.elements.filter((element) => selectedIds.includes(element.id)).map((element) => cloneElement(element));
+    set((current) => ({ ...current, elements: [...current.elements, ...copies] }));
+    setSelectedIds(copies.map((element) => element.id));
+  }
+
+  function layer(direction: 1 | -1 | 'top' | 'bottom') {
+    set((current) => {
+      const picked = current.elements.filter((element) => selectedIds.includes(element.id));
+      const rest = current.elements.filter((element) => !selectedIds.includes(element.id));
+      if (!picked.length) {
+        return current;
+      }
+      if (direction === 'top') {
+        return { ...current, elements: [...rest, ...picked] };
+      }
+      if (direction === 'bottom') {
+        return { ...current, elements: [...picked, ...rest] };
+      }
+      const elements = [...current.elements];
+      const order = direction === 1 ? [...elements.keys()].reverse() : [...elements.keys()];
+      for (const index of order) {
+        const target = index + direction;
+        if (selectedIds.includes(elements[index].id) && target >= 0 && target < elements.length && !selectedIds.includes(elements[target].id)) {
+          [elements[index], elements[target]] = [elements[target], elements[index]];
+        }
+      }
+      return { ...current, elements };
+    });
+  }
+
+  function align(mode: AlignMode) {
+    const picked = laid.elements.filter((element) => selectedIds.includes(element.id));
+    if (!picked.length) {
+      return;
+    }
+    const area = picked.length > 1 ? selectionBounds(picked) : { x: 0, y: 0, w: size.width, h: size.height };
+    const patches: PatchSet = picked.map((element): PatchSet[number] => {
+      switch (mode) {
+        case 'left':
+          return { id: element.id, patch: { x: Math.round(area.x) } };
+        case 'center':
+          return { id: element.id, patch: { x: Math.round(area.x + (area.w - element.w) / 2) } };
+        case 'right':
+          return { id: element.id, patch: { x: Math.round(area.x + area.w - element.w) } };
+        case 'top':
+          return { id: element.id, patch: { y: Math.round(area.y) } };
+        case 'middle':
+          return { id: element.id, patch: { y: Math.round(area.y + (area.h - element.h) / 2) } };
+        case 'bottom':
+          return { id: element.id, patch: { y: Math.round(area.y + area.h - element.h) } };
+        default:
+          return { id: element.id, patch: doc.landscape ? { y: 0, h: PAPER_DOTS } : { x: 0, w: PAPER_DOTS } };
+      }
+    });
+    if (mode === 'stack' || mode === 'spread') {
+      const sorted = [...picked].sort((a, b) => a.y - b.y);
+      const total = sorted.reduce((sum, element) => sum + element.h, 0);
+      const gap = mode === 'stack' ? 8 : sorted.length > 1 ? (area.h - total) / (sorted.length - 1) : 0;
+      let cursor = sorted[0].y;
+      updateMany(
+        sorted.map((element) => {
+          const patch = { id: element.id, patch: { y: Math.round(cursor) } };
+          cursor += element.h + gap;
+          return patch;
+        })
       );
-    } catch (error) {
-      setImportError(error instanceof Error ? error.message : 'Offkaiからイベント情報を取得できませんでした。');
-    } finally {
-      setImporting(false);
-    }
-  }
-
-  async function handlePngExport() {
-    const canvas = canvasRef.current;
-    if (!canvas) {
       return;
     }
-    setExportError('');
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-    if (!blob) {
-      setExportError('PNGを書き出せませんでした。');
-      return;
-    }
-    downloadBlob(blob, 'offkai-ticket.png');
+    updateMany(patches);
   }
 
-  function handleRawExport() {
-    try {
-      const canvas = createPrinterCanvas(receipt, activeLogo, printWidth, printRotation, rasterMargin, paddingBefore, paddingAfter);
-      const bytes = concat(encodePrint(canvas));
-      downloadBlob(new Blob([bytes], { type: 'application/octet-stream' }), 'offkai-ticket.escpos.bin');
-      setExportError('');
-    } catch (error) {
-      setExportError(error instanceof Error ? error.message : 'ESC/POSデータを書き出せませんでした。');
-    }
-  }
-
-  async function handlePrinterConnect(showAll = false) {
-    setPrinterError('');
-    setPrinterMessage('プリンターを選択してください');
-    try {
-      const onDisconnect = () => {
-        printAbortRef.current?.abort();
-        setPrinterConnection(null);
-        setPrinterMessage(IDLE_PRINTER_MESSAGE);
-        setPrinterError('プリンターとの接続が切れました。もう一度「印刷」を押すと再接続します。');
-      };
-      const connection =
-        connectionType === 'usb'
-          ? await requestUsbPrinter({ onDisconnect })
-          : connectionType === 'serial'
-            ? await requestSerialPrinter({ onDisconnect })
-            : await requestBluetoothPrinter({ namePrefix: bluetoothName || undefined, acceptAllDevices: showAll, onDisconnect });
-      setPrinterConnection(connection);
-      if (connectionType === 'bluetooth' && connection.deviceName) {
-        setBluetoothName(connection.deviceName);
+  useEffect(() => {
+    const open = () => {
+      if (!location.hash || location.hash.length < 3) {
+        return;
       }
-      setPrinterMessage(`接続中: ${connection.label}`);
-      return connection;
+      readDeepLink(location.hash)
+        .then((result) => {
+          if (!result) {
+            return;
+          }
+          loadDoc(result.doc);
+          window.history.replaceState(null, '', `${location.pathname}${location.search}`);
+          flash(result.ignored.length ? `Opened from the link. Ignored unknown fields: ${result.ignored.join(', ')}.` : 'Opened from the link. Undo brings back what you had.');
+        })
+        .catch((error) => flash(errorMessage(error), 'error'));
+    };
+    open();
+    window.addEventListener('hashchange', open);
+    return () => window.removeEventListener('hashchange', open);
+  }, []);
+
+  async function copyLink(kind: 'design' | 'app') {
+    try {
+      const result = kind === 'app' && doc.app ? { url: appLink(doc.app.id, doc.app.values), droppedPhotos: false } : await shareLink(doc);
+      setLink(result.url);
+      const copied = await navigator.clipboard.writeText(result.url).then(
+        () => true,
+        () => false
+      );
+      flash(`${copied ? 'Link copied.' : 'Link ready below, copy it from the box.'}${result.droppedPhotos ? ' Photos were left out to keep the link short.' : ''}`);
     } catch (error) {
-      setPrinterMessage(IDLE_PRINTER_MESSAGE);
-      if (!(error instanceof DOMException && error.name === 'NotFoundError')) {
-        setPrinterError(error instanceof Error ? error.message : 'プリンターに接続できませんでした。電源を入れて再試行してください。');
-      }
-      return null;
+      flash(errorMessage(error), 'error');
     }
   }
 
-  async function handlePrinterDisconnect() {
-    await printerConnection?.close();
-    setPrinterConnection(null);
-    setPrinterMessage(IDLE_PRINTER_MESSAGE);
+  function loadDoc(next: Doc) {
+    history.reset(next);
+    setSelectedIds([]);
+    setEditingId(null);
+    setDrawerOpen(false);
+    setZoom(null);
   }
 
-  async function handlePrint() {
-    await sendToPrinter(() => {
-      const canvas = createPrinterCanvas(receipt, activeLogo, printWidth, printRotation, rasterMargin, paddingBefore, paddingAfter);
-      return encodePrint(canvas);
-    });
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target;
+      if ((target instanceof Element && target.closest('input, textarea, select, [contenteditable]')) || drawerOpen || connectOpen) {
+        return;
+      }
+      const mod = event.metaKey || event.ctrlKey;
+      if (croppingId && (event.key === 'Escape' || event.key === 'Enter')) {
+        event.preventDefault();
+        setCroppingId(null);
+        return;
+      }
+      if (mod && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        if (event.shiftKey) {
+          history.redo();
+        } else {
+          history.undo();
+        }
+        return;
+      }
+      if (mod && event.key.toLowerCase() === 'y') {
+        event.preventDefault();
+        history.redo();
+        return;
+      }
+      if (mod && event.key.toLowerCase() === 'a') {
+        event.preventDefault();
+        setSelectedIds(doc.elements.map((element) => element.id));
+        return;
+      }
+      if (!selectedIds.length) {
+        return;
+      }
+      if (event.key === '[' || event.key === ']') {
+        event.preventDefault();
+        layer(event.key === ']' ? (mod ? 'top' : 1) : mod ? 'bottom' : -1);
+      } else if (mod && event.key.toLowerCase() === 'd') {
+        event.preventDefault();
+        duplicateSelected();
+      } else if (event.key === 'Delete' || event.key === 'Backspace') {
+        event.preventDefault();
+        deleteSelected();
+      } else if (event.key === 'Escape') {
+        setSelectedIds([]);
+      } else if (event.key === 'Enter' && selected?.kind === 'text') {
+        event.preventDefault();
+        setEditingId(selected.id);
+      } else if (event.key.startsWith('Arrow')) {
+        event.preventDefault();
+        const step = event.shiftKey ? 8 : 1;
+        const dx = event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0;
+        const dy = event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0;
+        updateMany(
+          doc.elements.filter((element) => selectedIds.includes(element.id)).map((element) => ({ id: element.id, patch: { x: element.x + dx, y: element.y + dy } })),
+          `nudge-${selectedIds.join()}`
+        );
+      }
+    };
+    const onPaste = (event: ClipboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.closest?.('input, textarea')) {
+        return;
+      }
+      const file = Array.from(event.clipboardData?.files ?? []).find((item) => item.type.startsWith('image/'));
+      if (file) {
+        event.preventDefault();
+        void addImage(file);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('paste', onPaste);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('paste', onPaste);
+    };
+  });
+
+  async function connectPrinter(connection: Connection) {
+    setStatus({ kind: 'busy', message: 'Waiting for you to pick a printer' });
+    try {
+      const next = await connect(connection, () => {
+        setPrinter(null);
+        flash('Printer disconnected.', 'error');
+      }, showAllDevices);
+      setPrinter(next);
+      flash(`Connected to ${next.deviceName ?? next.label}.`);
+      if (printAfterConnect.current) {
+        printAfterConnect.current = false;
+        setConnectOpen(false);
+        void print(next);
+      }
+    } catch (error) {
+      printAfterConnect.current = false;
+      flash(errorMessage(error), 'error');
+    }
   }
 
-  async function handleTestPrint() {
-    await sendToPrinter(() => {
-      const [initialize, ...lines] = textTestPage();
-      return heating > 0 ? [initialize, heatingCommand(heating), ...lines] : [initialize, ...lines];
-    });
+  async function disconnectPrinter() {
+    await printer?.close().catch(() => undefined);
+    setPrinter(null);
+    flash('Disconnected.');
   }
 
-  function encodePrint(canvas: Parameters<typeof canvasToBitmap>[0]) {
-    const bitmap = canvasToBitmap(canvas, dither ? { dither: 'atkinson' } : { dither: 'threshold', threshold: 200 });
-    return encodeBitmap(bitmap, { cut: cutMode, feedAfter: feedBeforeCut, heatingTime: heating });
-  }
-
-  async function sendToPrinter(encode: () => Uint8Array[]) {
-    const connection = printerConnection ?? (await handlePrinterConnect());
-    if (!connection) {
+  async function runTestPage() {
+    if (!printer) {
       return;
     }
+    setStatus({ kind: 'busy', message: 'Sending a text test page' });
+    try {
+      await testPage(printer, speed);
+      flash('Test page sent. If paper fed but stayed blank, flip the roll.');
+    } catch (error) {
+      flash(errorMessage(error), 'error');
+    }
+  }
+
+  async function print(target: Transport | null = printer): Promise<string> {
+    if (!target) {
+      printAfterConnect.current = true;
+      setConnectOpen(true);
+      return 'No printer connected.';
+    }
+    const rows = laid.landscape ? size.width : size.height;
+    if (rows > MAX_PRINT_ROWS && !longConfirmed.current) {
+      longConfirmed.current = true;
+      const message = `This print is ${Math.round(rows / 80) / 10} m long. The printer maker advises under 1 m in one go. Press Print again to go ahead.`;
+      flash(message, 'error');
+      return message;
+    }
+    longConfirmed.current = false;
     const controller = new AbortController();
-    printAbortRef.current = controller;
-    setPrinting(true);
-    setPrinterError('');
-    setPrinterMessage(`印刷中: ${connection.label}`);
+    abort.current = controller;
+    const copies = doc.print.copies;
+    setFeeding(0);
     try {
-      const parts = encode();
-      await sendParts(connection, parts, { chunkSize, signal: controller.signal });
-      setPrinterMessage(`印刷しました: ${connection.label}`);
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        setPrinterMessage('印刷を中止しました');
-      } else {
-        setPrinterMessage(`接続中: ${connection.label}`);
-        setPrinterError(error instanceof Error ? error.message : '印刷できませんでした。プリンターの電源と用紙を確認してください。');
+      for (let copy = 1; copy <= copies; copy += 1) {
+        setStatus({ kind: 'busy', message: copies > 1 ? `Printing copy ${copy} of ${copies}` : 'Printing' });
+        const copyTokens = appTokens(doc, { seed, copy, now: new Date() });
+        const sheet = renderDoc(layOut(doc, copyTokens), copyTokens);
+        const { parts } = encode(sheet, laid.landscape, laid.print);
+        await send(target, parts, controller.signal, (ratio) => setFeeding((copy - 1 + ratio) / copies), speed);
       }
+      setPrinted((items) => recordPrinted(items, { id: `${Date.now()}`, printedAt: Date.now(), copies, thumb: thumbnailOf(output), doc }));
+      const message = copies > 1 ? `Printed ${copies} copies.` : 'Printed. Tear against the edge.';
+      flash(message);
+      setSeed((value) => value + copies);
+      return message;
+    } catch (error) {
+      flash(errorMessage(error), 'error');
+      return errorMessage(error);
     } finally {
-      setPrinting(false);
-      printAbortRef.current = null;
+      abort.current = null;
+      setFeeding(null);
     }
   }
 
-  function cancelPrint() {
-    printAbortRef.current?.abort();
+  function exportPng() {
+    output.toBlob((blob) => blob && download(blob, fileName(doc, 'png')));
   }
+
+  function exportBin() {
+    const { parts } = encode(output, laid.landscape, laid.print);
+    download(new Blob([bytes(parts) as BlobPart], { type: 'application/octet-stream' }), fileName(doc, 'escpos.bin'));
+  }
+
+  function exportJson() {
+    download(new Blob([JSON.stringify(doc, null, 2)], { type: 'application/json' }), fileName(doc, 'inkless.json'));
+  }
+
+  function shelve() {
+    const name = doc.name.trim();
+    const existing = name ? shelf.find((item) => item.doc.name.trim() === name) : undefined;
+    const entry = { id: existing?.id ?? `${Date.now()}`, savedAt: Date.now(), doc };
+    const next = [entry, ...shelf.filter((item) => item.id !== entry.id)].slice(0, 30);
+    if (saveShelf(next)) {
+      setShelf(next);
+      flash(existing ? `Updated “${name}” in my designs.` : `Saved “${doc.name || 'Untitled'}” to my designs.`);
+    } else {
+      flash('Browser storage is full. Export the design as a file instead.', 'error');
+    }
+  }
+
+  function removeShelved(id: string) {
+    const next = shelf.filter((item) => item.id !== id);
+    saveShelf(next);
+    setShelf(next);
+  }
+
+  const agentApi = useRef<AgentApi | null>(null);
+  agentApi.current = {
+    doc,
+    laid,
+    output,
+    selectedIds,
+    printerName: printer ? (printer.deviceName ?? printer.label) : null,
+    update: (change) => set(change),
+    load: loadDoc,
+    select: setSelectedIds,
+    undo: history.undo,
+    redo: history.redo,
+    print
+  };
+
+  useEffect(() => registerTools(buildAgentTools(() => agentApi.current!)), []);
+
+  const busy = status.kind === 'busy';
+  const printLabel = feeding !== null ? 'Stop' : doc.print.copies > 1 ? `Print ${doc.print.copies}` : 'Print';
 
   return (
-    <div className="app">
+    <div className="app" data-panel={panel}>
       <header className="topbar">
-        <div className="brand-lockup">
-          <div className="brand-mark">RP</div>
-          <h1>Receipt Printer</h1>
+        <div className="brand">
+          <span className="wordmark">inkless</span>
+          <span className="doc-name">{doc.name || 'Untitled'}</span>
+        </div>
+        <div className="toolbar">
+          <button type="button" onClick={() => setDrawerOpen(true)}>
+            Presets
+          </button>
+          <button type="button" onClick={history.undo} disabled={!history.canUndo} aria-label="Undo">
+            Undo
+          </button>
+          <button type="button" onClick={history.redo} disabled={!history.canRedo} aria-label="Redo">
+            Redo
+          </button>
+          <div className="zoom" role="group" aria-label="Snapping">
+            {(['off', 'objects', 'grid'] as Magnet[]).map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={magnet === value}
+                title={value === 'off' ? 'No snapping' : value === 'objects' ? 'Snap to paper edges, other items and guides' : 'Also snap to a 1 mm grid'}
+                onClick={() => {
+                  setMagnet(value);
+                  try {
+                    localStorage.setItem('inkless:magnet', value);
+                  } catch {
+                    return;
+                  }
+                }}
+              >
+                {value === 'off' ? 'Snap off' : value === 'objects' ? 'Snap' : 'Snap + mm'}
+              </button>
+            ))}
+          </div>
+          <div className="zoom" role="group" aria-label="Zoom">
+            <button type="button" onClick={() => setZoom(Math.max(0.3, +(scale / 1.25).toFixed(2)))} aria-label="Zoom out">
+              −
+            </button>
+            <button type="button" onClick={() => setZoom(null)} aria-pressed={zoom === null}>
+              {Math.round(scale * 100)}%
+            </button>
+            <button type="button" onClick={() => setZoom(Math.min(8, +(scale * 1.25).toFixed(2)))} aria-label="Zoom in">
+              +
+            </button>
+          </div>
+        </div>
+        <div className="print-cluster">
+          <button type="button" className={`printer-pill${printer ? ' is-on' : ''}`} onClick={() => setConnectOpen(true)}>
+            <span className="led" aria-hidden="true" />
+            {printer ? printer.deviceName ?? printer.label : 'Connect printer'}
+          </button>
+          <button type="button" className="print-button" onClick={() => (feeding !== null ? abort.current?.abort() : void print())} disabled={busy && feeding === null}>
+            {printLabel}
+          </button>
         </div>
       </header>
 
       <main className="workspace">
-        <aside className="editor-panel">
-          <div className="panel-heading">
-            <h2>帳票をつくる</h2>
-            {persistenceMessage && <span className="save-chip">{persistenceMessage}</span>}
-          </div>
-
-          <section className="control-section">
-            <SectionHeading number="01" title="プリセット" />
-            <div className="preset-row">
-              <select className="text-input" value={selectedPresetId} onChange={(event) => setSelectedPresetId(event.target.value)} aria-label="プリセット">
-                <optgroup label="組み込み">
-                  {BUILT_IN_PRESETS.map((preset) => (
-                    <option key={preset.id} value={preset.id}>
-                      {preset.name}
-                    </option>
-                  ))}
-                </optgroup>
-                {savedPresets.length > 0 && (
-                  <optgroup label="保存済み">
-                    {savedPresets.map((preset) => (
-                      <option key={preset.id} value={preset.id}>
-                        {preset.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
-              <button className="button button-primary" type="button" onClick={handleLoadPreset}>
-                読み込む
-              </button>
-            </div>
-            <form className="preset-row" onSubmit={handleSavePreset}>
-              <input className="text-input" value={presetName} onChange={(event) => setPresetName(event.target.value)} placeholder="プリセット名" maxLength={100} aria-label="プリセット名" />
-              <button className="button button-secondary" type="submit">
-                保存
-              </button>
-            </form>
-            <div className="action-row">
-              <button className="button button-secondary" type="button" onClick={handleDeletePreset} disabled={!savedPresets.some((preset) => preset.id === selectedPresetId)}>
-                削除
-              </button>
-              <button className="button button-secondary" type="button" onClick={handleExportPreset}>
-                書き出し
-              </button>
-              <label className="button button-secondary file-button">
-                取り込み
-                <input type="file" accept="application/json,.json" onChange={handleImportPreset} />
-              </label>
-            </div>
-            {presetMessage && <p className="inline-success">{presetMessage}</p>}
-            {presetError && <p className="inline-error">{presetError}</p>}
-          </section>
-
-          <section className="control-section">
-            <SectionHeading number="02" title="Offkaiから読み込む" />
-            <form className="import-form" onSubmit={handleImport}>
-              <label className="field-label" htmlFor="offkai-url">
-                参加者URL
-              </label>
-              <input
-                id="offkai-url"
-                className="text-input"
-                type="url"
-                value={importUrl}
-                onChange={(event) => setImportUrl(event.target.value)}
-                placeholder="https://offkai.idolbu.moe/?token=…"
-                autoComplete="off"
-                disabled={!offkaiImportAvailable}
-              />
-              <label className="check-row">
-                <input
-                  type="checkbox"
-                  checked={includeAttendeeSerial}
-                  onChange={(event) => setIncludeAttendeeSerial(event.target.checked)}
-                  disabled={!offkaiImportAvailable}
-                />
-                <span>整理番号も反映する</span>
-              </label>
-              <ParkButton className="button button-primary" type="submit" disabled={importing || !importUrl.trim() || !offkaiImportAvailable}>
-                {importing ? '取得中…' : 'イベント情報を取得'}
-              </ParkButton>
-              <p className="helper-text">
-                {offkaiImportAvailable
-                  ? 'イベント名・日時・会場だけを反映。URLは成功後に消去します。'
-                  : '静的公開版ではサーバー経由のOffkai取込を停止しています。'}
-              </p>
-              {!offkaiImportAvailable && <p className="inline-error">ローカル開発サーバーで実行すると利用できます。</p>}
-              {importMessage && <p className="inline-success">{importMessage}</p>}
-              {importError && <p className="inline-error">{importError}</p>}
-            </form>
-          </section>
-
-          <section className="control-section">
-            <SectionHeading number="03" title="テキスト" />
-            <Field label="見出し" value={receipt.heading} onChange={(value) => updateReceipt('heading', value)} />
-            <Field label="サブ見出し" value={receipt.subtitle} onChange={(value) => updateReceipt('subtitle', value)} />
-            <Field label="日時・会場" value={receipt.dateVenue} onChange={(value) => updateReceipt('dateVenue', value)} />
-            <Field label="座席" value={receipt.seat} onChange={(value) => updateReceipt('seat', value)} />
-            <Field label="整理番号" value={receipt.serial} onChange={(value) => updateReceipt('serial', value)} />
-            <div className="field-group">
-              <span className="field-label">注意書き</span>
-              {receipt.notices.map((notice, index) => (
-                <textarea
-                  key={index}
-                  className="text-input notice-input"
-                  value={notice}
-                  onChange={(event) => updateNotice(index, event.target.value)}
-                  rows={1}
-                />
-              ))}
-            </div>
-          </section>
-
-          <section className="control-section">
-            <SectionHeading number="04" title="ロゴとフォント" />
-            <label className="upload-button">
-              <span>ロゴ画像をアップロード</span>
-              <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoUpload} />
-            </label>
-            <button
-              className={`button button-secondary ${receipt.logoMode === 'reference' ? 'is-active' : ''}`}
-              type="button"
-              onClick={() =>
-                setReceipt((current) => ({
-                  ...current,
-                  logoMode: 'reference',
-                  logoOffsetX: defaultReceipt.logoOffsetX,
-                  logoOffsetY: defaultReceipt.logoOffsetY,
-                  logoScale: defaultReceipt.logoScale
-                }))
-              }
-            >
-              見本ロゴに戻す
-            </button>
-            <RangeField
-              label={`横位置 ${receipt.logoOffsetX > 0 ? '+' : ''}${receipt.logoOffsetX}px（0で中央）`}
-              min={-MAX_LOGO_OFFSET_X}
-              max={MAX_LOGO_OFFSET_X}
-              step={1}
-              value={receipt.logoOffsetX}
-              onChange={(value) => updateReceipt('logoOffsetX', value)}
-            />
-            <RangeField
-              label={`縦位置 ${receipt.logoOffsetY > 0 ? '+' : ''}${receipt.logoOffsetY}px（0で中央）`}
-              min={-MAX_LOGO_OFFSET_Y}
-              max={MAX_LOGO_OFFSET_Y}
-              step={1}
-              value={receipt.logoOffsetY}
-              onChange={(value) => updateReceipt('logoOffsetY', value)}
-            />
-            <RangeField
-              label={`拡大率 ${Math.round(receipt.logoScale * 100)}%`}
-              min={0.5}
-              max={1.4}
-              step={0.01}
-              value={receipt.logoScale}
-              onChange={(value) => updateReceipt('logoScale', value)}
-            />
-            <label className="upload-button">
-              <span>カスタムフォントを読み込む</span>
-              <input type="file" accept=".woff,.woff2,.ttf,.ttc,.otf,font/woff,font/woff2,font/ttf,font/otf" onChange={handleFontUpload} />
-            </label>
-            <p className="helper-text font-name">{fontFileName}</p>
-          </section>
-
-          <section className="control-section">
-            <SectionHeading number="05" title="印刷設定" />
-            <div className="two-column-fields three-column-fields">
-              <label className="field-group">
-                <span className="field-label">前余白（mm）</span>
-                <input className="text-input" type="number" min={0} max={MAX_PADDING / DOTS_PER_MM} step={1} value={paddingBefore / DOTS_PER_MM} onChange={(event) => setPaddingBefore(paddingFromMillimeters(event.target.value))} />
-              </label>
-              <label className="field-group">
-                <span className="field-label">後余白（mm）</span>
-                <input className="text-input" type="number" min={0} max={MAX_PADDING / DOTS_PER_MM} step={1} value={paddingAfter / DOTS_PER_MM} onChange={(event) => setPaddingAfter(paddingFromMillimeters(event.target.value))} />
-              </label>
-              <label className="field-group">
-                <span className="field-label">上下余白（mm）</span>
-                <input className="text-input" type="number" min={0} max={Math.floor((printWidth - 8) / 2 / DOTS_PER_MM)} step={0.5} value={rasterMargin / DOTS_PER_MM} onChange={(event) => updateRasterMargin(Number(event.target.value) * DOTS_PER_MM)} />
-              </label>
-            </div>
-            <details className="advanced-settings">
-              <summary>詳細設定</summary>
-              <div className="advanced-body">
-                <label className="field-group">
-                  <span className="field-label">接続方法</span>
-                  <select
-                    className="text-input"
-                    value={connectionType}
-                    onChange={(event) => setConnectionType(event.target.value as ConnectionType)}
-                    disabled={Boolean(printerConnection)}
-                  >
-                    <option value="bluetooth">Bluetooth</option>
-                    <option value="usb">USB</option>
-                    <option value="serial">シリアル（USBシリアル / Bluetooth SPP）</option>
-                  </select>
-                </label>
-                <label className="check-row">
-                  <input type="checkbox" checked={dither} onChange={(event) => setDither(event.target.checked)} />
-                  <span>写真やロゴをディザリングで印刷する</span>
-                </label>
-                <div className="two-column-fields">
-                  <label className="field-group">
-                    <span className="field-label">向き</span>
-                    <select className="text-input" value={printRotation} onChange={(event) => setPrintRotation(event.target.value as PrintRotation)}>
-                      <option value="clockwise">右90°回転</option>
-                      <option value="counterclockwise">左90°回転</option>
-                    </select>
-                  </label>
-                  <label className="field-group">
-                    <span className="field-label">印字幅（dot）</span>
-                    <input className="text-input" type="number" min={MIN_PRINT_WIDTH} max={MAX_PRINT_WIDTH} step={8} value={printWidth} onChange={(event) => updatePrintWidth(Number(event.target.value))} />
-                  </label>
-                </div>
-                <div className="two-column-fields">
-                  <label className="field-group">
-                    <span className="field-label">カット方式</span>
-                    <select className="text-input" value={cutMode} onChange={(event) => setCutMode(event.target.value as CutMode)}>
-                      <option value="none">カットなし</option>
-                      <option value="full">全切り</option>
-                      <option value="partial">部分切り</option>
-                    </select>
-                  </label>
-                </div>
-                <div className="two-column-fields">
-                  <label className="field-group">
-                    <span className="field-label">追加送り</span>
-                    <input className="text-input" type="number" min={0} max={MAX_FEED_BEFORE_CUT} step={1} value={feedBeforeCut} onChange={(event) => updateFeedBeforeCut(Number(event.target.value))} />
-                  </label>
-                  <label className="field-group">
-                    <span className="field-label">加熱時間（0で既定）</span>
-                    <input className="text-input" type="number" min={0} max={MAX_HEATING} step={1} value={heating} onChange={(event) => setHeating(Math.max(0, Math.min(MAX_HEATING, Math.floor(Number(event.target.value)) || 0)))} />
-                  </label>
-                </div>
-                <label className="field-group">
-                  <span className="field-label">送信分割サイズ（最大182）</span>
-                  <input className="text-input" type="number" min={20} max={512} step={1} value={chunkSize} onChange={(event) => setChunkSize(Math.max(20, Math.min(512, Number(event.target.value) || 180)))} />
-                </label>
-                <div className="action-row">
-                  <button className="button button-secondary" type="button" onClick={handleTestPrint} disabled={printing || !connectionSupported}>
-                    テスト印字
-                  </button>
-                  <button className="button button-secondary" type="button" onClick={() => handlePrinterConnect(true)} disabled={connectionType !== 'bluetooth' || !connectionSupported || Boolean(printerConnection)}>
-                    全デバイスから接続
-                  </button>
-                </div>
-                <div className="action-row">
-                  <button className="button button-secondary" type="button" onClick={handlePngExport}>
-                    PNGを保存
-                  </button>
-                  <button className="button button-secondary" type="button" onClick={handleRawExport}>
-                    印刷データを保存
-                  </button>
-                </div>
-                {exportError && <p className="inline-error">{exportError}</p>}
-              </div>
-            </details>
-          </section>
+        <aside className="side side-left">
+          <Palette onAdd={(block) => addBlock(block)} />
+          <Layers
+            elements={laid.elements}
+            selectedIds={selectedIds}
+            tokens={tokens}
+            onSelect={(id, additive) => {
+              revealId.current = id;
+              setSelectedIds((current) => (additive ? (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]) : [id]));
+            }}
+          />
         </aside>
-
-        <section className="preview-panel">
-          <div className="print-bar">
-            <div className="print-status">
-              <span className={`status-dot ${printerConnection ? 'is-connected' : ''}`} />
-              <span>{printerMessage}</span>
+        <div
+          className={`mat${panning ? ' is-panning' : ''}`}
+          ref={matRef}
+          onPointerDownCapture={(event) => {
+            if (event.button === 1 || (event.button === 0 && spaceDown.current)) {
+              event.preventDefault();
+              event.stopPropagation();
+              event.currentTarget.setPointerCapture(event.pointerId);
+              pan.current = { x: event.clientX, y: event.clientY, left: event.currentTarget.scrollLeft, top: event.currentTarget.scrollTop };
+              setPanning(true);
+            }
+          }}
+          onPointerMove={(event) => {
+            if (pan.current) {
+              event.currentTarget.scrollLeft = pan.current.left - (event.clientX - pan.current.x);
+              event.currentTarget.scrollTop = pan.current.top - (event.clientY - pan.current.y);
+            }
+          }}
+          onPointerUp={() => {
+            if (pan.current) {
+              pan.current = null;
+              setPanning(spaceDown.current);
+            }
+          }}
+          onPointerDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setSelectedIds([]);
+              setEditingId(null);
+            }
+          }}
+        >
+          <Stage
+            elements={laid.elements}
+            width={size.width}
+            height={size.height}
+            landscape={doc.landscape}
+            output={output}
+            zoom={scale}
+            selectedIds={selectedIds}
+            spans={spans}
+            magnet={magnet}
+            rulerGuides={doc.guides ?? { x: [], y: [] }}
+            onGuides={(guides) => set((current) => ({ ...current, guides }))}
+            onCursor={setCursor}
+            croppingId={croppingId && selectedIds.includes(croppingId) ? croppingId : null}
+            onCrop={setCroppingId}
+            editingId={editingId}
+            feeding={feeding}
+            onSelect={setSelectedIds}
+            onEdit={setEditingId}
+            onChange={(patches, group) => {
+              const offsets = new Map(laid.elements.map((element) => [element.id, element.y - (doc.elements.find((item) => item.id === element.id)?.y ?? element.y)]));
+              updateMany(
+                patches.map((item) => (item.patch.y !== undefined && offsets.get(item.id) ? { ...item, patch: { ...item.patch, y: item.patch.y - offsets.get(item.id)! } } : item)),
+                group
+              );
+            }}
+            onGestureEnd={history.endGroup}
+            onDropBlock={(id, x, y) => {
+              const block = BLOCKS.find((item) => item.id === id);
+              if (block) {
+                addBlock(block, x, y);
+              }
+            }}
+            onDropFiles={(files, x, y, targetId) => {
+              const image = files.find((file) => file.type.startsWith('image/'));
+              const json = files.find((file) => file.name.endsWith('.json'));
+              if (image) {
+                void addImage(image, x, y, targetId);
+              } else if (json) {
+                json.text().then((text) => loadDoc(parseDocFile(text))).catch((error) => flash(errorMessage(error), 'error'));
+              } else {
+                flash('Drop an image or an inkless design file.', 'error');
+              }
+            }}
+            onPickImage={(id) => {
+              imageTarget.current = id;
+              imageInput.current?.click();
+            }}
+          />
+          {cursor && (
+            <div className="readout" aria-live="off">
+              x {Math.round(cursor.x)}, y {Math.round(cursor.y)} dots ({(cursor.x / 8).toFixed(1)}, {(cursor.y / 8).toFixed(1)} mm)
             </div>
-            <div className="print-actions">
-              {printerConnection && (
-                <button className="button button-secondary" type="button" onClick={handlePrinterDisconnect} disabled={printing}>
-                  切断
-                </button>
-              )}
-              <button className={`button ${printing ? 'button-secondary' : 'button-primary'}`} type="button" onClick={printing ? cancelPrint : handlePrint} disabled={!connectionSupported}>
-                {printing ? '印刷を中止' : '印刷'}
+          )}
+          {laid.elements.length === 0 && (
+            <div className="empty-paper">
+              <p>Empty roll. Drag a block onto the paper, drop a photo, or</p>
+              <button type="button" onClick={() => setDrawerOpen(true)}>
+                pick a preset
               </button>
             </div>
-          </div>
-          {!connectionSupported && <p className="inline-error">このブラウザは選択中の接続方法に対応していません。デスクトップ版Chromeで開いてください。</p>}
-          {printerError && <p className="inline-error">{printerError}</p>}
-          <div className="canvas-stage">
-            <div className="canvas-frame">
-              <canvas ref={canvasRef} className="receipt-canvas" aria-label="編集可能なチケットプレビュー" />
-            </div>
-          </div>
-        </section>
+          )}
+        </div>
+        <aside className="side side-right">
+          {selectedIds.length > 1 ? (
+            <MultiInspector count={selectedIds.length} onAlign={align} onLayer={layer} onDuplicate={duplicateSelected} onDelete={deleteSelected} />
+          ) : selected ? (
+            <ElementInspector
+              element={doc.elements.find((element) => element.id === selected.id)!}
+              onPatch={(patch, group) => updateElement(selected.id, patch, group)}
+              onPickImage={() => {
+                imageTarget.current = selected.id;
+                imageInput.current?.click();
+              }}
+              onWholePixels={() => {
+                if (selected.kind === 'image') {
+                  const size = wholePixelSize(selected);
+                  if (size) {
+                    updateElement(selected.id, { w: size.w, h: size.h, fit: 'stretch', frame: 'none', cropZoom: 1, cropX: 0, cropY: 0 } as Patch);
+                    flash(size.scale >= 1 ? `Every image pixel is now exactly ${size.scale}×${size.scale} printer dots.` : `Scaled to 1/${Math.round(1 / size.scale)} so the size divides evenly.`);
+                  }
+                }
+              }}
+              onFitImage={() => {
+                if (selected.kind === 'image') {
+                  const ratio = imageAspect(selected.src, selected.trim);
+                  if (ratio) {
+                    const inner = frameInset(selected, selected.w, selected.h);
+                    updateElement(selected.id, { h: Math.round(selected.h - inner.h + inner.w / ratio) });
+                  }
+                }
+              }}
+              onUploadFont={() => fontInput.current?.click()}
+              cropping={croppingId === selected.id}
+              onCrop={(on) => setCroppingId(on ? selected.id : null)}
+              barcodeError={selected.kind === 'barcode' ? barcodeError(selected, tokens) : null}
+              paperWidth={doc.landscape ? size.width : PAPER_DOTS}
+              onDuplicate={duplicateSelected}
+              onDelete={deleteSelected}
+              onLayer={layer}
+            />
+          ) : (
+            <>
+              {doc.app && findApp(doc.app.id) && (
+                <AppPanel
+                  manifest={findApp(doc.app.id)!}
+                  values={doc.app.values}
+                  onChange={(key, value, group) => set((current) => (current.app ? { ...current, app: { ...current.app, values: { ...current.app.values, [key]: value } } } : current), group)}
+                  onReset={() =>
+                    set((current) => {
+                      const app = current.app ? findApp(current.app.id) : null;
+                      if (!current.app || !app) {
+                        return current;
+                      }
+                      const samples = app.doc.elements.filter((element) => element.kind === 'image');
+                      let index = 0;
+                      const elements = current.elements.map((element) => {
+                        if (element.kind !== 'image') {
+                          return element;
+                        }
+                        const sample = samples[index++];
+                        return sample && sample.kind === 'image' ? { ...element, src: sample.src, trim: sample.trim, cropZoom: 1, cropX: 0, cropY: 0 } : element;
+                      });
+                      return { ...current, elements, app: { ...current.app, values: defaults(app.fields) } };
+                    })
+                  }
+                  onDetach={() => set((current) => detachApp(current, tokens))}
+                  onImport={(imported) => set((current) => (current.app ? { ...current, app: { ...current.app, values: { ...current.app.values, ...imported } } } : current))}
+                />
+              )}
+            <DocInspector
+              ditherNew={ditherNew}
+              onDitherNew={(on) => {
+                setDitherNew(on);
+                try {
+                  localStorage.setItem('inkless:dither-new', on ? 'on' : 'off');
+                } catch {
+                  return;
+                }
+              }}
+              ditheredCount={doc.elements.filter((element) => element.kind === 'image' && element.dither !== 'threshold').length}
+              onUndither={() => set((current) => ({ ...current, elements: current.elements.map((element) => (element.kind === 'image' && element.dither !== 'threshold' ? { ...element, dither: 'threshold' } : element)) }))}
+              doc={doc}
+              size={size}
+              coverage={coverage}
+              onDoc={set}
+              onReroll={() => setSeed((value) => value + 1)}
+              onExportPng={exportPng}
+              onExportBin={exportBin}
+              onExportJson={exportJson}
+              onImportJson={() => jsonInput.current?.click()}
+              onShelve={shelve}
+              link={link}
+              hasApp={!!doc.app}
+              onCopyLink={(kind) => void copyLink(kind)}
+            />
+            </>
+          )}
+        </aside>
       </main>
+
+      <nav className="mobile-tabs" aria-label="Panels">
+        {(['blocks', 'paper', 'edit'] as Panel[]).map((value) => (
+          <button key={value} type="button" aria-pressed={panel === value} onClick={() => setPanel(value)}>
+            {value === 'blocks' ? 'Blocks' : value === 'paper' ? 'Paper' : selected ? 'Edit' : 'Settings'}
+          </button>
+        ))}
+      </nav>
+
+      <div className={`toast toast-${status.kind}`} role="status" aria-live="polite">
+        {status.message}
+        {saveWarning && <span> This design is too large to autosave. Export it to keep it.</span>}
+      </div>
+
+      <PresetDrawer
+        open={drawerOpen}
+        shelf={shelf}
+        printed={printed}
+        onClose={() => setDrawerOpen(false)}
+        onPick={loadDoc}
+        onRemove={removeShelved}
+        onRemovePrinted={(id) => {
+          const next = printed.filter((item) => item.id !== id);
+          savePrinted(next);
+          setPrinted(next);
+        }}
+      />
+
+      {connectOpen && (
+        <div className="drawer-backdrop" onPointerDown={() => setConnectOpen(false)} onKeyDown={(event) => event.key === 'Escape' && setConnectOpen(false)}>
+          <div className="dialog" role="dialog" aria-modal="true" aria-labelledby="connect-title" onPointerDown={(event) => event.stopPropagation()}>
+            <div className="drawer-head">
+              <h2 id="connect-title">Printer</h2>
+              <button type="button" onClick={() => setConnectOpen(false)} autoFocus>
+                Close
+              </button>
+            </div>
+            {printer ? (
+              <div className="connected">
+                <p>
+                  Connected to <strong>{printer.deviceName ?? printer.label}</strong>.
+                </p>
+                <div className="button-row">
+                  <button type="button" onClick={runTestPage} disabled={busy}>
+                    Print a text test page
+                  </button>
+                  <button type="button" className="danger" onClick={disconnectPrinter}>
+                    Disconnect
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <p className="panel-note">58 mm ESC/POS printers (PT-210 class and similar). Needs desktop or Android Chrome or Edge.</p>
+                <ul className="connections">
+                  {CONNECTIONS.map((option) => {
+                    const available = supported(option.value);
+                    return (
+                      <li key={option.value}>
+                        <button type="button" onClick={() => void connectPrinter(option.value)} disabled={!available || busy}>
+                          <strong>{option.label}</strong>
+                          <span>{available ? option.detail : 'This browser cannot use this connection.'}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <label className="field toggle">
+                  <input type="checkbox" checked={showAllDevices} onChange={(event) => setShowAllDevices(event.target.checked)} />
+                  <span>Printer missing from the Bluetooth list? Show every nearby device.</span>
+                </label>
+              </>
+            )}
+            <fieldset className="field speed">
+              <legend className="field-label">Sending speed</legend>
+              {(Object.keys(SPEEDS) as Speed[]).map((value) => (
+                <label key={value} className="toggle">
+                  <input
+                    type="radio"
+                    name="speed"
+                    checked={speed === value}
+                    onChange={() => {
+                      setSpeed(value);
+                      saveSpeed(value);
+                    }}
+                  />
+                  <span>
+                    <strong>{SPEEDS[value].label}</strong> {SPEEDS[value].detail}
+                  </span>
+                </label>
+              ))}
+              <p className="panel-note">If a print stops halfway, comes out garbled or skips lines, step down a speed.</p>
+            </fieldset>
+            {status.message && <p className={`dialog-status status-${status.kind}`}>{status.message}</p>}
+          </div>
+        </div>
+      )}
+
+      <input
+        ref={imageInput}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          if (file) {
+            void addImage(file, undefined, undefined, imageTarget.current);
+          }
+          event.target.value = '';
+        }}
+      />
+      <input
+        ref={fontInput}
+        type="file"
+        accept=".ttf,.otf,.woff,.woff2"
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (!file) {
+            return;
+          }
+          addCustomFont(file)
+            .then((family) => {
+              if (selected?.kind === 'text') {
+                updateElement(selected.id, { font: family, weight: 400 } as Patch);
+              }
+              flash(`Loaded ${family}.`);
+            })
+            .catch(() => flash('That font file could not be loaded.', 'error'));
+        }}
+      />
+      <input
+        ref={jsonInput}
+        type="file"
+        accept=".json,application/json"
+        hidden
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          file
+            ?.text()
+            .then((text) => loadDoc(parseDocFile(text)))
+            .catch((error) => flash(errorMessage(error), 'error'));
+        }}
+      />
     </div>
   );
-}
-
-function SectionHeading({ number, title }: { number: string; title: string }) {
-  return (
-    <div className="section-heading">
-      <span>{number}</span>
-      <h3>{title}</h3>
-    </div>
-  );
-}
-
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
-  return (
-    <label className="field-group">
-      <span className="field-label">{label}</span>
-      <input className="text-input" value={value} onChange={(event) => onChange(event.target.value)} />
-    </label>
-  );
-}
-
-function RangeField({
-  label,
-  min,
-  max,
-  step,
-  value,
-  onChange
-}: {
-  label: string;
-  min: number;
-  max: number;
-  step: number;
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <label className="range-group">
-      <span className="field-label">{label}</span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} />
-    </label>
-  );
-}
-
-function formatEventDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  const parts = new Intl.DateTimeFormat('ja-JP', {
-    timeZone: 'Asia/Tokyo',
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  }).formatToParts(date);
-  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value || '';
-  return `${get('year')}年${get('month')}月${get('day')}日（${get('weekday')}） ${get('hour')}:${get('minute')}`;
-}
-
-function downloadBlob(blob: Blob, fileName: string) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = fileName;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
-const DOTS_PER_MM = 8;
-const IDLE_PRINTER_MESSAGE = '「印刷」を押すとプリンターを選べます';
-
-function paddingFromMillimeters(value: string) {
-  return Math.max(0, Math.min(MAX_PADDING, Math.round(Number(value) * DOTS_PER_MM) || 0));
-}
-
-function loadLogo(dataUrl: string) {
-  return new Promise<LogoAsset>((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve({ ...trimLogo(image), dataUrl });
-    image.onerror = () => reject(new Error('ロゴ画像を読み込めませんでした。'));
-    image.src = dataUrl;
-  });
-}
-
-async function fetchDataUrl(url: string) {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-  const blob = await response.blob();
-  if (!blob.type.startsWith('image/')) {
-    throw new Error('not an image');
-  }
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => (typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('read failed')));
-    reader.onerror = () => reject(new Error('read failed'));
-    reader.readAsDataURL(blob);
-  });
 }

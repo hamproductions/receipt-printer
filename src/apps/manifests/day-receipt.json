@@ -1,0 +1,255 @@
+{
+  "id": "day-receipt",
+  "version": 1,
+  "name": "Receipt of the day",
+  "hint": "Itemize your wins",
+  "fields": [
+    {
+      "key": "store",
+      "label": "Store name",
+      "type": "text",
+      "default": "TODAY MART"
+    },
+    {
+      "key": "clerk",
+      "label": "Clerk",
+      "type": "text",
+      "default": "YOU"
+    },
+    {
+      "key": "items",
+      "label": "Wins",
+      "type": "list",
+      "default": [
+        {
+          "item": "Woke up",
+          "qty": 1,
+          "price": 0
+        },
+        {
+          "item": "Drank water",
+          "qty": 3,
+          "price": 0
+        },
+        {
+          "item": "Answered the email",
+          "qty": 1,
+          "price": 0
+        },
+        {
+          "item": "Went outside",
+          "qty": 1,
+          "price": 0
+        },
+        {
+          "item": "Did not doomscroll",
+          "qty": 1,
+          "price": 0
+        }
+      ],
+      "columns": [
+        {
+          "key": "item",
+          "label": "Win",
+          "type": "text"
+        },
+        {
+          "key": "qty",
+          "label": "Qty",
+          "type": "number"
+        },
+        {
+          "key": "price",
+          "label": "Price",
+          "type": "number"
+        }
+      ],
+      "format": "{item:<20}{qty} ¥{price}",
+      "max": 8
+    },
+    {
+      "key": "total",
+      "label": "Total",
+      "type": "text",
+      "default": "PRICELESS"
+    },
+    {
+      "key": "footer",
+      "label": "Footer",
+      "type": "text",
+      "default": "Thank you for showing up"
+    }
+  ],
+  "doc": {
+    "version": 1,
+    "name": "Receipt of the day",
+    "landscape": false,
+    "length": 600,
+    "autoLength": true,
+    "endSpace": 96,
+    "elements": [
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Rubik Mono One",
+        "size": 34,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 20,
+        "text": "{{store}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "VT323",
+        "size": 24,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 66,
+        "text": "{date}  {time}\nREG 01  CLERK: {{clerk}}"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 8,
+        "rotation": 0,
+        "invert": false,
+        "shape": "dashes",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 130
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "VT323",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "y": 148,
+        "text": "{{items}}"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 8,
+        "rotation": 0,
+        "invert": false,
+        "shape": "dashes",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 316
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Archivo Black",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 334,
+        "text": "TOTAL"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Archivo Black",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "right",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 334,
+        "text": "{{total}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "VT323",
+        "size": 24,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 386,
+        "text": "Points earned today: {num:100-999}"
+      },
+      {
+        "kind": "barcode",
+        "x": 0,
+        "w": 384,
+        "h": 64,
+        "rotation": 0,
+        "invert": false,
+        "data": "TODAY-{dice}",
+        "format": "CODE128",
+        "showText": false,
+        "y": 428
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Caveat",
+        "size": 32,
+        "weight": 700,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 504,
+        "text": "{{footer}}"
+      }
+    ],
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128
+    }
+  }
+}

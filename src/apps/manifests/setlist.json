@@ -1,0 +1,237 @@
+{
+  "id": "setlist",
+  "version": 1,
+  "name": "Setlist",
+  "hint": "Tape it to the stage floor",
+  "fields": [
+    {
+      "key": "event",
+      "label": "Event",
+      "type": "text",
+      "default": "TOUR FINAL"
+    },
+    {
+      "key": "venue",
+      "label": "Venue",
+      "type": "text",
+      "default": "The Basement Hall"
+    },
+    {
+      "key": "date",
+      "label": "Date",
+      "type": "date",
+      "default": "2026-12-24"
+    },
+    {
+      "key": "songs",
+      "label": "Songs",
+      "type": "list",
+      "default": [
+        {
+          "n": 1,
+          "song": "Opening Static"
+        },
+        {
+          "n": 2,
+          "song": "Paper Planes at Night"
+        },
+        {
+          "n": 3,
+          "song": "Neon Laundromat"
+        },
+        {
+          "n": 4,
+          "song": "Slow Train North"
+        },
+        {
+          "n": 5,
+          "song": "Glass Garden"
+        },
+        {
+          "n": 6,
+          "song": "Midnight Receipt"
+        },
+        {
+          "n": 7,
+          "song": "Satellite Heart"
+        },
+        {
+          "n": 8,
+          "song": "Corner Store Blues"
+        },
+        {
+          "n": 9,
+          "song": "Run for the Ferry"
+        },
+        {
+          "n": 10,
+          "song": "Last Light"
+        }
+      ],
+      "columns": [
+        {
+          "key": "n",
+          "label": "No.",
+          "type": "number"
+        },
+        {
+          "key": "song",
+          "label": "Song",
+          "type": "text"
+        }
+      ],
+      "format": "{n:>2}  {song}",
+      "max": 24
+    },
+    {
+      "key": "encore",
+      "label": "Encore",
+      "type": "toggle",
+      "default": true
+    },
+    {
+      "key": "encoreSongs",
+      "label": "Encore songs",
+      "type": "list",
+      "default": [
+        {
+          "n": 1,
+          "song": "Hometown Radio"
+        },
+        {
+          "n": 2,
+          "song": "Goodnight Everybody"
+        }
+      ],
+      "columns": [
+        {
+          "key": "n",
+          "label": "No.",
+          "type": "number"
+        },
+        {
+          "key": "song",
+          "label": "Song",
+          "type": "text"
+        }
+      ],
+      "format": "E{n}  {song}",
+      "max": 6
+    }
+  ],
+  "doc": {
+    "version": 1,
+    "name": "Setlist",
+    "landscape": false,
+    "length": 600,
+    "autoLength": true,
+    "endSpace": 96,
+    "elements": [
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 52,
+        "rotation": 0,
+        "invert": false,
+        "font": "Bebas Neue",
+        "size": 52,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.0,
+        "letterSpacing": 0,
+        "y": 12,
+        "text": "{{event}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 52,
+        "rotation": 0,
+        "invert": false,
+        "font": "Space Mono",
+        "size": 20,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.3,
+        "letterSpacing": 0,
+        "y": 74,
+        "text": "{{venue}}\n{{date}}"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 12,
+        "rotation": 0,
+        "invert": false,
+        "shape": "zigzag",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 138
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 308,
+        "rotation": 0,
+        "invert": false,
+        "font": "Space Mono",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.4,
+        "letterSpacing": 0,
+        "y": 164,
+        "text": "{{songs}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 33,
+        "rotation": 0,
+        "invert": true,
+        "font": "Archivo Black",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 488,
+        "text": "ENCORE",
+        "when": "encore"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 62,
+        "rotation": 0,
+        "invert": false,
+        "font": "Space Mono",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.4,
+        "letterSpacing": 0,
+        "y": 533,
+        "text": "{{encoreSongs}}",
+        "when": "encore"
+      }
+    ],
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128
+    }
+  }
+}

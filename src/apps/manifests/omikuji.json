@@ -1,0 +1,186 @@
+{
+  "id": "omikuji",
+  "version": 1,
+  "name": "Omikuji fortune",
+  "hint": "Every copy rolls a new fortune",
+  "fields": [
+    {
+      "key": "title",
+      "label": "Title",
+      "type": "text",
+      "default": "おみくじ"
+    },
+    {
+      "key": "fortune",
+      "label": "Fortune",
+      "type": "text",
+      "default": "{pick:大吉|中吉|小吉|吉|末吉|凶}",
+      "hint": "Use {pick:a|b|c} to roll one per copy"
+    },
+    {
+      "key": "lines",
+      "label": "Readings",
+      "type": "list",
+      "default": [
+        {
+          "topic": "願望",
+          "answer": "{pick:叶う|待てば叶う|焦るな|思いのまま}"
+        },
+        {
+          "topic": "待人",
+          "answer": "{pick:来る|遅れて来る|便りあり|来ず}"
+        },
+        {
+          "topic": "失物",
+          "answer": "{pick:出る|近くにある|諦めよ}"
+        },
+        {
+          "topic": "学問",
+          "answer": "{pick:努力が実る|今が好機|基礎を固めよ}"
+        }
+      ],
+      "columns": [
+        {
+          "key": "topic",
+          "label": "Topic",
+          "type": "text"
+        },
+        {
+          "key": "answer",
+          "label": "Answer",
+          "type": "text"
+        }
+      ],
+      "format": "{topic}　{answer}",
+      "max": 6
+    },
+    {
+      "key": "date",
+      "label": "Date",
+      "type": "date",
+      "default": "{date}"
+    }
+  ],
+  "doc": {
+    "version": 1,
+    "name": "Omikuji",
+    "landscape": false,
+    "length": 600,
+    "autoLength": true,
+    "endSpace": 96,
+    "elements": [
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 540,
+        "rotation": 0,
+        "invert": false,
+        "shape": "rect",
+        "fill": "none",
+        "stroke": 4,
+        "radius": 0,
+        "y": 0
+      },
+      {
+        "kind": "shape",
+        "x": 10,
+        "w": 364,
+        "h": 500,
+        "rotation": 0,
+        "invert": false,
+        "shape": "rect",
+        "fill": "none",
+        "stroke": 1,
+        "radius": 0,
+        "y": 10
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Yusei Magic",
+        "size": 40,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 50,
+        "text": "{{title}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Dela Gothic One",
+        "size": 120,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1,
+        "letterSpacing": 0,
+        "y": 116,
+        "text": "{{fortune}}"
+      },
+      {
+        "kind": "shape",
+        "x": 48,
+        "w": 288,
+        "h": 10,
+        "rotation": 0,
+        "invert": false,
+        "shape": "zigzag",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 262
+      },
+      {
+        "kind": "text",
+        "x": 24,
+        "w": 336,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Zen Kaku Gothic New",
+        "size": 22,
+        "weight": 700,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.6,
+        "letterSpacing": 0,
+        "y": 290,
+        "text": "{{lines}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "VT323",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 470,
+        "text": "{{date}}"
+      }
+    ],
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128
+    }
+  }
+}

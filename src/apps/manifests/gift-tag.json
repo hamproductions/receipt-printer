@@ -1,0 +1,116 @@
+{
+  "id": "gift-tag",
+  "version": 1,
+  "name": "Gift tag",
+  "hint": "To, from, and a doodle border",
+  "fields": [
+    {
+      "key": "title",
+      "label": "Title",
+      "type": "text",
+      "default": "For you"
+    },
+    {
+      "key": "to",
+      "label": "To",
+      "type": "text",
+      "default": "",
+      "placeholder": "Recipient"
+    },
+    {
+      "key": "from",
+      "label": "From",
+      "type": "text",
+      "default": "",
+      "placeholder": "Your name"
+    }
+  ],
+  "doc": {
+    "version": 1,
+    "name": "Gift tag",
+    "landscape": false,
+    "length": 600,
+    "autoLength": true,
+    "endSpace": 96,
+    "elements": [
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 300,
+        "rotation": 0,
+        "invert": false,
+        "shape": "rect",
+        "fill": "dots",
+        "stroke": 0,
+        "radius": 0,
+        "y": 0
+      },
+      {
+        "kind": "shape",
+        "x": 24,
+        "w": 336,
+        "h": 252,
+        "rotation": 0,
+        "invert": true,
+        "shape": "rect",
+        "fill": "solid",
+        "stroke": 0,
+        "radius": 0,
+        "y": 24
+      },
+      {
+        "kind": "shape",
+        "x": 24,
+        "w": 336,
+        "h": 252,
+        "rotation": 0,
+        "invert": false,
+        "shape": "rect",
+        "fill": "none",
+        "stroke": 4,
+        "radius": 0,
+        "y": 24
+      },
+      {
+        "kind": "text",
+        "x": 24,
+        "w": 336,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Caveat",
+        "size": 56,
+        "weight": 700,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 48,
+        "text": "{{title}}"
+      },
+      {
+        "kind": "text",
+        "x": 48,
+        "w": 288,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Caveat",
+        "size": 34,
+        "weight": 700,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.5,
+        "letterSpacing": 0,
+        "y": 132,
+        "text": "To: {{to}}\nFrom: {{from}}"
+      }
+    ],
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128
+    }
+  }
+}

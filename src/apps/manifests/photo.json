@@ -1,0 +1,95 @@
+{
+  "id": "photo",
+  "version": 1,
+  "name": "Polaroid",
+  "hint": "Photo with a fat bottom margin and caption",
+  "fields": [
+    {
+      "key": "caption",
+      "label": "Caption",
+      "type": "text",
+      "default": "Best day ever",
+      "placeholder": "Best day ever"
+    },
+    {
+      "key": "date",
+      "label": "Date",
+      "type": "date",
+      "default": "{date}",
+      "hint": "{date} prints today"
+    },
+    {
+      "key": "show_date",
+      "label": "Show date",
+      "type": "toggle",
+      "default": true
+    }
+  ],
+  "doc": {
+    "version": 1,
+    "name": "Polaroid",
+    "landscape": false,
+    "length": 600,
+    "autoLength": true,
+    "endSpace": 96,
+    "elements": [
+      {
+        "kind": "image",
+        "x": 0,
+        "w": 384,
+        "h": 470,
+        "rotation": 0,
+        "invert": false,
+        "src": "",
+        "fit": "cover",
+        "dither": "threshold",
+        "brightness": 0,
+        "contrast": 15,
+        "gamma": 1,
+        "threshold": 128,
+        "y": 0,
+        "frame": "polaroid"
+      },
+      {
+        "kind": "text",
+        "x": 24,
+        "w": 336,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Caveat",
+        "size": 38,
+        "weight": 700,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 392,
+        "text": "{{caption}}"
+      },
+      {
+        "kind": "text",
+        "x": 24,
+        "w": 336,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Caveat",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 438,
+        "text": "{{date}}",
+        "when": "show_date"
+      }
+    ],
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128
+    }
+  }
+}

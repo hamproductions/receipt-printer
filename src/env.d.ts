@@ -1,9 +1,6 @@
-interface ImportMetaEnv {
-  readonly DEV: boolean;
-  readonly BASE_URL: string;
-  readonly VITE_STATIC_DEPLOY?: string;
-}
+/// <reference types="vite/client" />
 
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
+interface ImportMetaEnv {
+  readonly VITE_STATIC_DEPLOY?: string;
+  readonly VITE_BASE_PATH?: string;
 }

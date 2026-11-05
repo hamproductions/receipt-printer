@@ -1,0 +1,181 @@
+{
+  "id": "offkai-ticket",
+  "version": 1,
+  "name": "Offkai ticket",
+  "hint": "いきづらい部！ 2nd LIVE style live ticket, import from Offkai",
+  "importer": "offkai",
+  "fields": [
+    {
+      "key": "heading",
+      "label": "Heading",
+      "type": "text",
+      "default": "/r/LoveLive Offkai"
+    },
+    {
+      "key": "subtitle",
+      "label": "Event name",
+      "type": "text",
+      "default": "いきづらい部！ 2nd LIVE Dou-Da? DOING! ～Reply to L～"
+    },
+    {
+      "key": "dateVenue",
+      "label": "Date and venue",
+      "type": "text",
+      "default": "2026年9月20日（日） 開場 20:00/開演 20:30 新宿火消し餃子 歌舞伎町店"
+    },
+    {
+      "key": "seat",
+      "label": "Seat",
+      "type": "text",
+      "default": "一般指定席 ｱﾘｰﾅ 酒ﾌﾞﾛｯｸ ○列 ○番",
+      "hint": "Half-width katakana and full-width ○ are kept exactly as typed."
+    },
+    {
+      "key": "serial",
+      "label": "Number",
+      "type": "text",
+      "default": "S2305"
+    },
+    {
+      "key": "notices",
+      "label": "Notices",
+      "type": "longtext",
+      "default": "※本券の交換・譲渡・転売を禁じます。\n　上記の違反行為が発覚した場合、即時退場となります。\n※再入場はできません。\n※紛失にて発生したトラブルには一切対応できません。\n※本券は再発行できません。本券は公演終了まで大切にお持ちください。"
+    }
+  ],
+  "doc": {
+    "version": 1,
+    "name": "Offkai ticket",
+    "landscape": true,
+    "length": 1417,
+    "autoLength": true,
+    "endSpace": 96,
+    "elements": [
+      {
+        "kind": "image",
+        "x": 48,
+        "y": 129,
+        "w": 371,
+        "h": 214,
+        "rotation": 0,
+        "invert": false,
+        "src": "apps/ikizuraibu-logo.png",
+        "fit": "contain",
+        "dither": "threshold",
+        "brightness": 0,
+        "contrast": 0,
+        "gamma": 1,
+        "threshold": 128,
+        "autoTrim": true
+      },
+      {
+        "kind": "text",
+        "x": 455,
+        "y": 12,
+        "w": 866,
+        "h": 46,
+        "rotation": 0,
+        "invert": false,
+        "text": "{{heading}}",
+        "font": "MS Gothic",
+        "size": 46,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.0,
+        "letterSpacing": 0
+      },
+      {
+        "kind": "text",
+        "x": 455,
+        "y": 60,
+        "w": 866,
+        "h": 28,
+        "rotation": 0,
+        "invert": false,
+        "text": "{{subtitle}}",
+        "font": "MS Gothic",
+        "size": 28,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.0,
+        "letterSpacing": 0
+      },
+      {
+        "kind": "text",
+        "x": 455,
+        "y": 123,
+        "w": 880,
+        "h": 26,
+        "rotation": 0,
+        "invert": false,
+        "text": "{{dateVenue}}",
+        "font": "MS Gothic",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.0,
+        "letterSpacing": 0
+      },
+      {
+        "kind": "text",
+        "x": 455,
+        "y": 153,
+        "w": 880,
+        "h": 43,
+        "rotation": 0,
+        "invert": false,
+        "text": "{{seat}}",
+        "font": "MS Gothic",
+        "size": 43,
+        "weight": 700,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.0,
+        "letterSpacing": 0
+      },
+      {
+        "kind": "text",
+        "x": 455,
+        "y": 196,
+        "w": 880,
+        "h": 28,
+        "rotation": 0,
+        "invert": false,
+        "text": "{{serial}}",
+        "font": "MS Gothic",
+        "size": 28,
+        "weight": 700,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.0,
+        "letterSpacing": 0
+      },
+      {
+        "kind": "text",
+        "x": 455,
+        "y": 231,
+        "w": 880,
+        "h": 29,
+        "rotation": 0,
+        "invert": false,
+        "text": "{{notices}}",
+        "font": "MS Gothic",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.1,
+        "letterSpacing": 0
+      }
+    ],
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128,
+      "rotate": 90
+    }
+  }
+}

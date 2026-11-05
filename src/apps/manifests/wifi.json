@@ -1,0 +1,110 @@
+{
+  "id": "wifi",
+  "version": 1,
+  "name": "Wi-Fi card",
+  "hint": "Guests scan to join. Edit the QR text",
+  "fields": [
+    {
+      "key": "heading",
+      "label": "Heading",
+      "type": "text",
+      "default": "Scan to join Wi-Fi"
+    },
+    {
+      "key": "ssid",
+      "label": "Network name",
+      "type": "text",
+      "default": "Your network"
+    },
+    {
+      "key": "password",
+      "label": "Password",
+      "type": "text",
+      "default": "your-password"
+    },
+    {
+      "key": "showPassword",
+      "label": "Print password",
+      "type": "toggle",
+      "default": true
+    }
+  ],
+  "doc": {
+    "version": 1,
+    "name": "Wi-Fi card",
+    "landscape": false,
+    "length": 600,
+    "autoLength": true,
+    "endSpace": 96,
+    "elements": [
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Archivo Black",
+        "size": 34,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 8,
+        "text": "{{heading}}"
+      },
+      {
+        "kind": "qr",
+        "x": 52,
+        "w": 280,
+        "h": 280,
+        "rotation": 0,
+        "invert": false,
+        "data": "WIFI:T:WPA;S:{{ssid}};P:{{password}};;",
+        "ecc": "M",
+        "y": 64
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "M PLUS 1 Code",
+        "size": 22,
+        "weight": 700,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 356,
+        "text": "Network: {{ssid}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "M PLUS 1 Code",
+        "size": 22,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 388,
+        "text": "Password: {{password}}",
+        "when": "showPassword"
+      }
+    ],
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128
+    }
+  }
+}

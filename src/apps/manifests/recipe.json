@@ -1,0 +1,267 @@
+{
+  "id": "recipe",
+  "version": 1,
+  "name": "Recipe card",
+  "hint": "Ingredients and steps for the kitchen",
+  "fields": [
+    {
+      "key": "dish",
+      "label": "Dish",
+      "type": "text",
+      "default": "Weeknight Ramen"
+    },
+    {
+      "key": "serves",
+      "label": "Servings",
+      "type": "number",
+      "default": 2,
+      "min": 1,
+      "max": 20,
+      "step": 1
+    },
+    {
+      "key": "minutes",
+      "label": "Minutes",
+      "type": "number",
+      "default": 25,
+      "min": 1,
+      "max": 600,
+      "step": 5
+    },
+    {
+      "key": "ingredients",
+      "label": "Ingredients",
+      "type": "list",
+      "default": [
+        {
+          "qty": "2",
+          "item": "ramen noodle packs"
+        },
+        {
+          "qty": "800ml",
+          "item": "chicken stock"
+        },
+        {
+          "qty": "2 tbsp",
+          "item": "soy sauce"
+        },
+        {
+          "qty": "1 tbsp",
+          "item": "white miso"
+        },
+        {
+          "qty": "2",
+          "item": "soft boiled eggs"
+        },
+        {
+          "qty": "1",
+          "item": "scallion, sliced"
+        }
+      ],
+      "columns": [
+        {
+          "key": "qty",
+          "label": "Amount",
+          "type": "text"
+        },
+        {
+          "key": "item",
+          "label": "Ingredient",
+          "type": "text"
+        }
+      ],
+      "format": "{qty:<8}{item}",
+      "max": 14
+    },
+    {
+      "key": "steps",
+      "label": "Steps",
+      "type": "longtext",
+      "default": "1. Cook noodles, then drain.\n2. Warm stock with soy and miso.\n3. Fry scallion in a little oil.\n4. Pour stock over the noodles.\n5. Top with eggs and scallion."
+    },
+    {
+      "key": "notes",
+      "label": "Tip",
+      "type": "text",
+      "default": "Chili oil makes it sing"
+    }
+  ],
+  "doc": {
+    "version": 1,
+    "name": "Recipe card",
+    "landscape": false,
+    "length": 600,
+    "autoLength": true,
+    "endSpace": 96,
+    "elements": [
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 27,
+        "rotation": 0,
+        "invert": true,
+        "font": "Space Mono",
+        "size": 18,
+        "weight": 700,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.5,
+        "letterSpacing": 6,
+        "y": 16,
+        "text": "RECIPE CARD"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 44,
+        "rotation": 0,
+        "invert": false,
+        "font": "Archivo Black",
+        "size": 36,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "y": 55,
+        "text": "{{dish}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 32,
+        "rotation": 0,
+        "invert": false,
+        "font": "VT323",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "y": 107,
+        "text": "SERVES {{serves}}  |  {{minutes}} MIN"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 8,
+        "rotation": 0,
+        "invert": false,
+        "shape": "dashes",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 151
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 26,
+        "rotation": 0,
+        "invert": false,
+        "font": "Space Mono",
+        "size": 20,
+        "weight": 700,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.3,
+        "letterSpacing": 2,
+        "y": 171,
+        "text": "INGREDIENTS"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 188,
+        "rotation": 0,
+        "invert": false,
+        "font": "VT323",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "y": 203,
+        "text": "{{ingredients}}"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 8,
+        "rotation": 0,
+        "invert": false,
+        "shape": "dashes",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 403
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 26,
+        "rotation": 0,
+        "invert": false,
+        "font": "Space Mono",
+        "size": 20,
+        "weight": 700,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.3,
+        "letterSpacing": 2,
+        "y": 423,
+        "text": "METHOD"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 126,
+        "rotation": 0,
+        "invert": false,
+        "font": "Space Mono",
+        "size": 18,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.4,
+        "letterSpacing": 0,
+        "y": 455,
+        "text": "{{steps}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 72,
+        "rotation": 0,
+        "invert": false,
+        "font": "Caveat",
+        "size": 30,
+        "weight": 700,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "y": 594,
+        "text": "{{notes}}",
+        "when": "notes"
+      }
+    ],
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128
+    }
+  }
+}

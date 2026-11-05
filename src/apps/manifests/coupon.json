@@ -1,0 +1,194 @@
+{
+  "id": "coupon",
+  "version": 1,
+  "name": "Coupon",
+  "hint": "One free thing, cut along the line",
+  "fields": [
+    {
+      "key": "title",
+      "label": "Title",
+      "type": "text",
+      "default": "COUPON"
+    },
+    {
+      "key": "offer",
+      "label": "Offer",
+      "type": "text",
+      "default": "FREE"
+    },
+    {
+      "key": "item",
+      "label": "What for",
+      "type": "text",
+      "default": "hug / coffee / dish duty"
+    },
+    {
+      "key": "expiry",
+      "label": "Expiry",
+      "type": "text",
+      "default": "NO EXPIRY"
+    },
+    {
+      "key": "terms",
+      "label": "Fine print",
+      "type": "text",
+      "default": "Valid for the holder of this paper"
+    }
+  ],
+  "doc": {
+    "version": 1,
+    "name": "Coupon",
+    "landscape": false,
+    "length": 600,
+    "autoLength": true,
+    "endSpace": 96,
+    "elements": [
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 10,
+        "rotation": 0,
+        "invert": false,
+        "shape": "zigzag",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 0
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Monoton",
+        "size": 64,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.1,
+        "letterSpacing": 0,
+        "y": 26,
+        "text": "{{title}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Rubik Mono One",
+        "size": 96,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1,
+        "letterSpacing": 0,
+        "y": 110,
+        "text": "{{offer}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Permanent Marker",
+        "size": 30,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 214,
+        "text": "{{item}}"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 52,
+        "rotation": 0,
+        "invert": false,
+        "shape": "rect",
+        "fill": "stripes",
+        "stroke": 0,
+        "radius": 0,
+        "y": 268
+      },
+      {
+        "kind": "text",
+        "x": 40,
+        "w": 304,
+        "h": 30,
+        "rotation": 0,
+        "invert": true,
+        "font": "Archivo Black",
+        "size": 30,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 274,
+        "text": "{{expiry}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "IBM Plex Sans JP",
+        "size": 16,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 340,
+        "text": "{{terms}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 40,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Noto Sans JP",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 376,
+        "text": "✂"
+      },
+      {
+        "kind": "shape",
+        "x": 40,
+        "w": 344,
+        "h": 8,
+        "rotation": 0,
+        "invert": false,
+        "shape": "dashes",
+        "fill": "solid",
+        "stroke": 2,
+        "radius": 0,
+        "y": 388
+      }
+    ],
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128
+    }
+  }
+}

@@ -1,0 +1,88 @@
+{
+  "id": "banner",
+  "version": 1,
+  "name": "Long banner",
+  "hint": "Huge letters printed along the roll",
+  "fields": [
+    {
+      "key": "message",
+      "label": "Message",
+      "type": "text",
+      "default": "HAPPY BIRTHDAY",
+      "placeholder": "HAPPY BIRTHDAY",
+      "hint": "Short and loud reads best"
+    },
+    {
+      "key": "topEdge",
+      "label": "Top zigzag",
+      "type": "toggle",
+      "default": true
+    },
+    {
+      "key": "bottomEdge",
+      "label": "Bottom zigzag",
+      "type": "toggle",
+      "default": true
+    }
+  ],
+  "doc": {
+    "version": 1,
+    "name": "Banner",
+    "landscape": true,
+    "length": 1900,
+    "autoLength": false,
+    "endSpace": 96,
+    "elements": [
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 1900,
+        "h": 14,
+        "rotation": 0,
+        "invert": false,
+        "shape": "zigzag",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 0,
+        "when": "topEdge"
+      },
+      {
+        "kind": "text",
+        "x": 20,
+        "w": 1860,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Bungee",
+        "size": 160,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "y": 92,
+        "text": "{{message}}"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 1900,
+        "h": 14,
+        "rotation": 180,
+        "invert": false,
+        "shape": "zigzag",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 370,
+        "when": "bottomEdge"
+      }
+    ],
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128
+    }
+  }
+}

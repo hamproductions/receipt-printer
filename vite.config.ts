@@ -6,8 +6,6 @@ const OFFKAI_ORIGIN = 'https://offkai.idolbu.moe';
 const MAX_REQUEST_BYTES = 4_096;
 const MAX_RESPONSE_BYTES = 1_048_576;
 const OFFKAI_TIMEOUT_MS = 8_000;
-const basePath = process.env.VITE_BASE_PATH || '/';
-const BASE_PATH = basePath.endsWith('/') ? basePath : `${basePath}/`;
 
 function offkaiImportPlugin(): Plugin {
   return {
@@ -267,11 +265,6 @@ function mapOffkaiResponse(value: unknown, includeAttendeeSerial: boolean) {
 }
 
 export default defineConfig({
-  base: BASE_PATH,
-  plugins: [react(), offkaiImportPlugin()],
-  resolve: {
-    alias: {
-      'styled-system': new URL('./styled-system/', import.meta.url).pathname
-    }
-  }
+  base: process.env.VITE_BASE_PATH || '/',
+  plugins: [react(), offkaiImportPlugin()]
 });

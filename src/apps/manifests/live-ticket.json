@@ -1,0 +1,224 @@
+{
+  "id": "live-ticket",
+  "version": 1,
+  "name": "Live ticket",
+  "hint": "Concert stub with seat and QR",
+  "fields": [
+    {
+      "key": "artist",
+      "label": "Artist",
+      "type": "text",
+      "default": "ARTIST NAME"
+    },
+    {
+      "key": "tour",
+      "label": "Tour",
+      "type": "text",
+      "default": "LIVE TOUR 2026"
+    },
+    {
+      "key": "date",
+      "label": "Date",
+      "type": "text",
+      "default": "2026.12.24 (木)",
+      "hint": "Printed as typed"
+    },
+    {
+      "key": "open",
+      "label": "Doors",
+      "type": "time",
+      "default": "17:00"
+    },
+    {
+      "key": "start",
+      "label": "Start",
+      "type": "time",
+      "default": "18:00"
+    },
+    {
+      "key": "venue",
+      "label": "Venue",
+      "type": "text",
+      "default": "会場名ホール"
+    },
+    {
+      "key": "gate",
+      "label": "Gate",
+      "type": "text",
+      "default": "A"
+    },
+    {
+      "key": "url",
+      "label": "Ticket link",
+      "type": "url",
+      "default": "https://example.com/ticket"
+    }
+  ],
+  "doc": {
+    "version": 1,
+    "name": "Live ticket",
+    "landscape": false,
+    "length": 600,
+    "autoLength": true,
+    "endSpace": 96,
+    "elements": [
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 14,
+        "rotation": 0,
+        "invert": false,
+        "shape": "scallop",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 0
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Bebas Neue",
+        "size": 64,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1,
+        "letterSpacing": 0,
+        "y": 36,
+        "text": "{{artist}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": true,
+        "font": "Dela Gothic One",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 104,
+        "text": "{{tour}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Zen Kaku Gothic New",
+        "size": 17,
+        "weight": 700,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.4,
+        "letterSpacing": 0,
+        "y": 152,
+        "text": "{{date}}\nOPEN {{open}} / START {{start}}\n{{venue}}"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 8,
+        "rotation": 0,
+        "invert": false,
+        "shape": "line",
+        "fill": "solid",
+        "stroke": 2,
+        "radius": 0,
+        "y": 226
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 192,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Zen Kaku Gothic New",
+        "size": 22,
+        "weight": 900,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.3,
+        "letterSpacing": 0,
+        "y": 244,
+        "text": "ゲート\n{{gate}}"
+      },
+      {
+        "kind": "text",
+        "x": 192,
+        "w": 192,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Zen Kaku Gothic New",
+        "size": 22,
+        "weight": 900,
+        "italic": false,
+        "align": "right",
+        "lineHeight": 1.3,
+        "letterSpacing": 0,
+        "y": 244,
+        "text": "整理番号\n{num:1-500}"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 8,
+        "rotation": 0,
+        "invert": false,
+        "shape": "dashes",
+        "fill": "solid",
+        "stroke": 2,
+        "radius": 0,
+        "y": 318
+      },
+      {
+        "kind": "qr",
+        "x": 112,
+        "w": 160,
+        "h": 160,
+        "rotation": 0,
+        "invert": false,
+        "data": "{{url}}",
+        "ecc": "M",
+        "y": 340
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "IBM Plex Sans JP",
+        "size": 18,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 512,
+        "text": "No re-entry. Keep this stub."
+      }
+    ],
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128
+    }
+  }
+}

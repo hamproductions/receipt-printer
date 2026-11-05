@@ -1,328 +1,123 @@
-import type { CutMode } from 'escpos-web-print';
-import {
-  defaultReceipt,
-  MAX_FEED_BEFORE_CUT,
-  MAX_HEATING,
-  MAX_LOGO_OFFSET_X,
-  MAX_LOGO_OFFSET_Y,
-  MAX_PADDING,
-  MAX_PRINT_WIDTH,
-  MIN_PRINT_WIDTH,
-  type LogoAsset,
-  type PrintRotation,
-  type ReceiptState
-} from './receipt';
+import { defaults } from './apps/bindings';
+import { buildApp, findApp } from './apps/registry';
+import { isDoc, normalizeDoc, type Doc } from './doc';
 
-const STORAGE_KEY = 'receipt-printer:editor:v1';
-export const MAX_LOGO_DATA_URL_LENGTH = 1_500_000;
-export type ConnectionType = 'bluetooth' | 'usb' | 'serial';
+const CURRENT_KEY = 'inkless:current';
+const SHELF_KEY = 'inkless:shelf';
+const PRINTED_KEY = 'inkless:printed';
+const PRINTED_LIMIT = 40;
 
-export const DEFAULT_PADDING_BEFORE = 48;
-export const DEFAULT_PADDING_AFTER = 96;
-export const DEFAULT_SIDE_MARGIN = 12;
+export type ShelfItem = { id: string; savedAt: number; doc: Doc };
 
-export type PersistedEditor = {
-  version: 1;
-  receipt: ReceiptState;
-  settings: {
-    printWidth: number;
-    sideMargin: number;
-    paddingBefore: number;
-    trailingPadding: number;
-    paperCut: CutMode;
-    feedBeforeCut: number;
-    heating: number;
-    dither: boolean;
-    printRotation: PrintRotation;
-    chunkSize: number;
-    bluetoothName: string;
-    connectionType: ConnectionType;
-    includeAttendeeSerial: boolean;
-  };
-  logo?: {
-    dataUrl: string;
-    width: number;
-    height: number;
-  };
-};
-
-export function readPersistedEditor() {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
+function read(key: string): unknown {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return null;
-    }
-    const parsed: unknown = JSON.parse(raw);
-    const value = validatePersistedEditor(parsed);
-    if (!value) {
-      window.localStorage.removeItem(STORAGE_KEY);
-    }
-    return value;
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
   } catch {
-    try {
-      window.localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      return null;
-    }
     return null;
   }
 }
 
-export function writePersistedEditor(value: PersistedEditor) {
-  if (typeof window === 'undefined') {
-    return false;
-  }
+function write(key: string, value: unknown) {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
+    localStorage.setItem(key, JSON.stringify(value));
     return true;
   } catch {
     return false;
   }
 }
 
-export function createPersistedEditor(
-  receipt: ReceiptState,
-  settings: PersistedEditor['settings'],
-  logo: LogoAsset | null
-) {
-  const persistedLogo = persistableLogo(receipt, logo);
-
-  return {
-    version: 1 as const,
-    receipt: {
-      ...receipt,
-      logoMode: persistedLogo ? 'upload' : 'reference',
-      fontFamily: defaultReceipt.fontFamily
-    },
-    settings,
-    ...(persistedLogo ? { logo: persistedLogo } : {})
-  } satisfies PersistedEditor;
+export function loadCurrent() {
+  const value = read(CURRENT_KEY);
+  return isDoc(value) ? normalizeDoc(value) : null;
 }
 
-function persistableLogo(receipt: ReceiptState, logo: LogoAsset | null) {
-  return receipt.logoMode === 'upload' && logo?.dataUrl && logo.dataUrl.length <= MAX_LOGO_DATA_URL_LENGTH
-    ? { dataUrl: logo.dataUrl, width: logo.width, height: logo.height }
-    : undefined;
+export function saveCurrent(doc: Doc) {
+  return write(CURRENT_KEY, doc);
 }
 
-function validatePersistedEditor(value: unknown): PersistedEditor | null {
-  if (!isRecord(value) || value.version !== 1 || !isRecord(value.receipt) || !isRecord(value.settings)) {
-    return null;
+export function loadShelf(): ShelfItem[] {
+  const value = read(SHELF_KEY);
+  if (!Array.isArray(value)) {
+    return [];
   }
+  return value.filter((item): item is ShelfItem => !!item && typeof item === 'object' && isDoc((item as ShelfItem).doc)).map((item) => ({ ...item, doc: normalizeDoc(item.doc) }));
+}
 
-  const receipt = validateReceipt(value.receipt);
-  const settings = validateSettings(value.settings);
-  const logo = validateLogo(value.logo);
-  if (!receipt || !settings) {
-    return null;
+export function saveShelf(items: ShelfItem[]) {
+  return write(SHELF_KEY, items);
+}
+
+export type PrintedItem = { id: string; printedAt: number; copies: number; thumb: string; doc: Doc };
+
+export function loadPrinted(): PrintedItem[] {
+  const value = read(PRINTED_KEY);
+  if (!Array.isArray(value)) {
+    return [];
   }
-
-  return {
-    version: 1,
-    receipt: { ...receipt, logoMode: logo ? receipt.logoMode : 'reference' },
-    settings,
-    ...(logo ? { logo } : {})
-  };
+  return value
+    .filter((item): item is PrintedItem => !!item && typeof item === 'object' && typeof (item as PrintedItem).thumb === 'string' && isDoc((item as PrintedItem).doc))
+    .map((item) => ({ ...item, doc: normalizeDoc(item.doc) }));
 }
 
-function validateReceipt(value: Record<string, unknown>): ReceiptState | null {
-  const heading = boundedString(value.heading, 300);
-  const subtitle = boundedString(value.subtitle, 500);
-  const dateVenue = boundedString(value.dateVenue, 500);
-  const seat = boundedString(value.seat, 300);
-  const serial = boundedString(value.serial, 120);
-  const notices = value.notices;
-  if (
-    heading === null ||
-    subtitle === null ||
-    dateVenue === null ||
-    seat === null ||
-    serial === null ||
-    !Array.isArray(notices) ||
-    notices.length !== defaultReceipt.notices.length ||
-    notices.some((notice) => typeof notice !== 'string' || notice.length > 500)
-  ) {
-    return null;
+function withoutPhotos(doc: Doc): Doc {
+  return { ...doc, elements: doc.elements.map((element) => (element.kind === 'image' ? { ...element, src: '' } : element)) };
+}
+
+export function recordPrinted(items: PrintedItem[], entry: PrintedItem) {
+  let next = [entry, ...items].slice(0, PRINTED_LIMIT);
+  while (next.length > 1 && !write(PRINTED_KEY, next)) {
+    next = next.slice(0, -1);
   }
-
-  const logoMode = value.logoMode === 'upload' ? 'upload' : 'reference';
-  const logoOffsetY = value.logoOffsetY === undefined ? (logoMode === 'upload' ? 0 : defaultReceipt.logoOffsetY) : boundedNumber(value.logoOffsetY, -MAX_LOGO_OFFSET_Y, MAX_LOGO_OFFSET_Y);
-  const logoOffsetX = value.logoOffsetX === undefined ? (logoMode === 'upload' ? 0 : defaultReceipt.logoOffsetX) : boundedNumber(value.logoOffsetX, -MAX_LOGO_OFFSET_X, MAX_LOGO_OFFSET_X);
-  const logoScale = boundedNumber(value.logoScale, 0.5, 1.4);
-  if (logoOffsetX === null || logoOffsetY === null || logoScale === null) {
-    return null;
+  if (next.length === 1 && !write(PRINTED_KEY, next)) {
+    next = [{ ...entry, doc: withoutPhotos(entry.doc) }];
+    if (!write(PRINTED_KEY, next)) {
+      return items;
+    }
   }
-
-  return {
-    heading,
-    subtitle,
-    dateVenue,
-    seat,
-    serial,
-    notices: [...notices],
-    logoMode,
-    logoOffsetX,
-    logoOffsetY,
-    logoScale,
-    fontFamily: defaultReceipt.fontFamily
-  };
+  return next;
 }
 
-function validateSettings(value: Record<string, unknown>): PersistedEditor['settings'] | null {
-  const rawPrintWidth = value.printWidth === undefined ? 384 : boundedNumber(value.printWidth, MIN_PRINT_WIDTH, MAX_PRINT_WIDTH);
-  if (rawPrintWidth === null) {
-    return null;
-  }
-  const printWidth = Math.max(MIN_PRINT_WIDTH, Math.min(MAX_PRINT_WIDTH, Math.round(rawPrintWidth / 8) * 8));
-  const rawMargin = value.sideMargin === undefined ? DEFAULT_SIDE_MARGIN : boundedNumber(value.sideMargin, 0, MAX_PRINT_WIDTH);
-  const sideMargin = Math.min(Math.floor(rawMargin ?? DEFAULT_SIDE_MARGIN), Math.floor((printWidth - 8) / 2));
-  const paddingBefore = readPadding(value.paddingBefore, DEFAULT_PADDING_BEFORE);
-  const trailingPadding = readPadding(value.trailingPadding, DEFAULT_PADDING_AFTER);
-  const rawFeed = value.feedBeforeCut === undefined ? 0 : boundedNumber(value.feedBeforeCut, 0, MAX_FEED_BEFORE_CUT);
-  const feedBeforeCut = Math.floor(rawFeed ?? 0);
-  const rawHeating = value.heating === undefined ? 0 : boundedNumber(value.heating, 0, MAX_HEATING);
-  const heating = Math.floor(rawHeating ?? 0);
-  const printRotation = readPrintRotation(value);
-  const paperCut = value.paperCut === 'full' || value.paperCut === 'partial' ? value.paperCut : 'none';
-  const chunkSize = boundedNumber(value.chunkSize, 20, 512);
-  const bluetoothName = value.bluetoothName === undefined ? '' : boundedString(value.bluetoothName, 64);
-  if (
-    chunkSize === null ||
-    bluetoothName === null ||
-    typeof value.includeAttendeeSerial !== 'boolean'
-  ) {
-    return null;
-  }
-  return {
-    printWidth,
-    sideMargin,
-    paddingBefore,
-    trailingPadding,
-    paperCut,
-    feedBeforeCut,
-    heating,
-    dither: value.dither !== false,
-    printRotation,
-    chunkSize,
-    bluetoothName,
-    connectionType: value.connectionType === 'usb' || value.connectionType === 'serial' ? value.connectionType : 'bluetooth',
-    includeAttendeeSerial: value.includeAttendeeSerial
-  };
+export function savePrinted(items: PrintedItem[]) {
+  return write(PRINTED_KEY, items);
 }
 
-function readPadding(value: unknown, fallback: number) {
-  return value === undefined ? fallback : Math.floor(boundedNumber(value, 0, MAX_PADDING) ?? fallback);
-}
-
-function readPrintRotation(value: Record<string, unknown>): PrintRotation {
-  return value.printRotation === 'counterclockwise' ? 'counterclockwise' : 'clockwise';
-}
-
-function validateLogo(value: unknown) {
-  if (!isRecord(value)) {
-    return null;
-  }
-  const dataUrl = value.dataUrl;
-  const width = boundedNumber(value.width, 1, 4_000);
-  const height = boundedNumber(value.height, 1, 4_000);
-  if (
-    typeof dataUrl !== 'string' ||
-    dataUrl.length > MAX_LOGO_DATA_URL_LENGTH ||
-    !/^data:image\/(?:png|jpeg|webp);base64,/u.test(dataUrl) ||
-    width === null ||
-    height === null
-  ) {
-    return null;
-  }
-  return { dataUrl, width, height };
-}
-
-function boundedString(value: unknown, maxLength: number) {
-  return typeof value === 'string' && value.length <= maxLength ? value : null;
-}
-
-function boundedNumber(value: unknown, min: number, max: number) {
-  return typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max ? value : null;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-const PRESET_STORAGE_KEY = 'receipt-printer:presets:v1';
-const MAX_PRESETS = 50;
-
-export type PresetLogo = NonNullable<PersistedEditor['logo']>;
-
-export type Preset = {
-  id: string;
+type LegacyPreset = {
   name: string;
-  receipt: ReceiptState;
-  logo?: PresetLogo;
+  receipt: { heading: string; subtitle: string; dateVenue: string; seat: string; serial: string; notices: string[] };
+  logo?: { dataUrl: string };
 };
 
-export function createPreset(name: string, receipt: ReceiptState, logo: LogoAsset | null): Preset {
-  const presetLogo = persistableLogo(receipt, logo);
+function isLegacyPreset(value: unknown): value is LegacyPreset {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const receipt = (value as LegacyPreset).receipt;
+  return !!receipt && typeof receipt === 'object' && ['heading', 'subtitle', 'dateVenue', 'seat', 'serial'].every((key) => typeof receipt[key as keyof typeof receipt] === 'string') && Array.isArray(receipt.notices);
+}
+
+function fromLegacy(preset: LegacyPreset): Doc {
+  const app = findApp('offkai-ticket');
+  if (!app) {
+    throw new Error('The Offkai ticket app is missing.');
+  }
+  const { heading, subtitle, dateVenue, seat, serial, notices } = preset.receipt;
+  const doc = buildApp(app, { ...defaults(app.fields), heading, subtitle, dateVenue, seat, serial, notices: notices.join('\n') });
+  const logo = preset.logo?.dataUrl;
   return {
-    id: `preset-${Date.now().toString(36)}`,
-    name,
-    receipt: { ...receipt, logoMode: presetLogo ? 'upload' : 'reference', fontFamily: defaultReceipt.fontFamily },
-    ...(presetLogo ? { logo: presetLogo } : {})
+    ...doc,
+    name: preset.name || doc.name,
+    elements: logo && logo.startsWith('data:image/') ? doc.elements.map((element) => (element.kind === 'image' ? { ...element, src: logo, trim: true } : element)) : doc.elements
   };
 }
 
-export function readPresets() {
-  if (typeof window === 'undefined') {
-    return [];
+export function parseDocFile(text: string) {
+  const value: unknown = JSON.parse(text);
+  if (isLegacyPreset(value)) {
+    return fromLegacy(value);
   }
-  try {
-    const parsed: unknown = JSON.parse(window.localStorage.getItem(PRESET_STORAGE_KEY) ?? '[]');
-    return Array.isArray(parsed) ? parsed.map(validatePreset).filter((preset): preset is Preset => preset !== null) : [];
-  } catch {
-    return [];
+  if (!isDoc(value)) {
+    throw new Error('This file is not an inkless design or a Receipt Printer preset.');
   }
-}
-
-export function writePresets(presets: Preset[]) {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  try {
-    window.localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presets.slice(0, MAX_PRESETS)));
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-export function parsePresetFile(text: string) {
-  try {
-    const preset = validatePreset(JSON.parse(text));
-    return preset ? { ...preset, id: `preset-${Date.now().toString(36)}` } : null;
-  } catch {
-    return null;
-  }
-}
-
-function validatePreset(value: unknown): Preset | null {
-  if (!isRecord(value) || !isRecord(value.receipt)) {
-    return null;
-  }
-  const id = boundedString(value.id, 100);
-  const name = boundedString(value.name, 100);
-  const receipt = validateReceipt(value.receipt);
-  const logo = value.logo === undefined ? null : validateLogo(value.logo);
-  if (!id || !name?.trim() || !receipt || (value.logo !== undefined && !logo)) {
-    return null;
-  }
-  return {
-    id,
-    name: name.trim(),
-    receipt: { ...receipt, logoMode: logo ? 'upload' : 'reference' },
-    ...(logo ? { logo } : {})
-  };
+  return normalizeDoc(value);
 }

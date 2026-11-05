@@ -1,0 +1,119 @@
+{
+  "id": "name-tag",
+  "version": 1,
+  "name": "Name tag",
+  "hint": "Hello, my name is",
+  "fields": [
+    {
+      "key": "name",
+      "label": "Name",
+      "type": "text",
+      "default": "Your Name",
+      "placeholder": "Your Name"
+    },
+    {
+      "key": "greeting",
+      "label": "Greeting",
+      "type": "text",
+      "default": "HELLO"
+    },
+    {
+      "key": "subtitle",
+      "label": "Subtitle",
+      "type": "text",
+      "default": "my name is"
+    }
+  ],
+  "doc": {
+    "version": 1,
+    "name": "Name tag",
+    "landscape": false,
+    "length": 600,
+    "autoLength": true,
+    "endSpace": 96,
+    "elements": [
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 96,
+        "rotation": 0,
+        "invert": false,
+        "shape": "rect",
+        "fill": "solid",
+        "stroke": 0,
+        "radius": 0,
+        "y": 0
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": true,
+        "font": "Archivo Black",
+        "size": 40,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.1,
+        "letterSpacing": 0,
+        "y": 14,
+        "text": "{{greeting}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": true,
+        "font": "IBM Plex Sans JP",
+        "size": 20,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 60,
+        "text": "{{subtitle}}"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 290,
+        "rotation": 0,
+        "invert": false,
+        "shape": "rect",
+        "fill": "none",
+        "stroke": 6,
+        "radius": 0,
+        "y": 0
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "Permanent Marker",
+        "size": 64,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 140,
+        "text": "{{name}}"
+      }
+    ],
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128
+    }
+  }
+}

@@ -1,0 +1,202 @@
+{
+  "id": "contact",
+  "version": 1,
+  "name": "Contact card",
+  "hint": "Scan to save the contact",
+  "fields": [
+    {
+      "key": "name",
+      "label": "Name",
+      "type": "text",
+      "default": "Sam Taylor"
+    },
+    {
+      "key": "title",
+      "label": "Title",
+      "type": "text",
+      "default": "Product Designer"
+    },
+    {
+      "key": "phone",
+      "label": "Phone",
+      "type": "text",
+      "default": "+1 555 0100"
+    },
+    {
+      "key": "email",
+      "label": "Email",
+      "type": "text",
+      "default": "sam@example.com"
+    },
+    {
+      "key": "site",
+      "label": "Website",
+      "type": "url",
+      "default": "https://example.com"
+    },
+    {
+      "key": "note",
+      "label": "Footer",
+      "type": "text",
+      "default": "Scan to save my contact"
+    }
+  ],
+  "doc": {
+    "version": 1,
+    "name": "Contact card",
+    "landscape": false,
+    "length": 600,
+    "autoLength": true,
+    "endSpace": 96,
+    "elements": [
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 112,
+        "rotation": 0,
+        "invert": false,
+        "shape": "rect",
+        "fill": "solid",
+        "stroke": 0,
+        "radius": 0,
+        "y": 0
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 42,
+        "rotation": 0,
+        "invert": true,
+        "font": "Archivo Black",
+        "size": 34,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 14,
+        "text": "{{name}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": true,
+        "font": "VT323",
+        "size": 24,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 62,
+        "text": "{{title}}"
+      },
+      {
+        "kind": "qr",
+        "x": 92,
+        "w": 200,
+        "h": 200,
+        "rotation": 0,
+        "invert": false,
+        "data": "MECARD:N:{{name}};TEL:{{phone}};EMAIL:{{email}};URL:{{site}};;",
+        "ecc": "M",
+        "y": 128
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 28,
+        "rotation": 0,
+        "invert": false,
+        "font": "Space Mono",
+        "size": 20,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.4,
+        "letterSpacing": 0,
+        "y": 344,
+        "text": "TEL  {{phone}}",
+        "when": "phone"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 28,
+        "rotation": 0,
+        "invert": false,
+        "font": "Space Mono",
+        "size": 20,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.4,
+        "letterSpacing": 0,
+        "y": 376,
+        "text": "MAIL {{email}}",
+        "when": "email"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 28,
+        "rotation": 0,
+        "invert": false,
+        "font": "Space Mono",
+        "size": 20,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.4,
+        "letterSpacing": 0,
+        "y": 408,
+        "text": "WEB  {{site}}",
+        "when": "site"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 8,
+        "rotation": 0,
+        "invert": false,
+        "shape": "dashes",
+        "fill": "solid",
+        "stroke": 2,
+        "radius": 0,
+        "y": 448
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 31,
+        "rotation": 0,
+        "invert": false,
+        "font": "Caveat",
+        "size": 26,
+        "weight": 700,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "y": 468,
+        "text": "{{note}}",
+        "when": "note"
+      }
+    ],
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128
+    }
+  }
+}

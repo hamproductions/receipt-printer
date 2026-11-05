@@ -1,5 +1,5 @@
 {
-  "name": "receipt-printer",
+  "name": "inkless",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -7,23 +7,21 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "type-check": "tsc --noEmit",
-    "preview": "vite preview",
-    "prepare": "panda codegen"
-  },
-  "dependencies": {
-    "@ark-ui/react": "^4.8.1",
-    "@pandacss/dev": "^1.7.1",
-    "@park-ui/panda-preset": "^0.43.1",
-    "escpos-web-print": "^0.1.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "preview": "vite preview"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "^5.7.3",
-    "vite": "^7.3.0"
+    "@types/node": "^22.20.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.7"
+  },
+  "dependencies": {
+    "escpos-web-print": "^0.1.0",
+    "jsbarcode": "^3.12.3",
+    "qrcode-generator": "^2.0.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   }
 }

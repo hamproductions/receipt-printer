@@ -1,0 +1,182 @@
+{
+  "id": "offkai-bee",
+  "version": 1,
+  "name": "Boom Boom BEE ticket",
+  "hint": "Offkai ticket with the LOVELIVE! FEST logo",
+  "importer": "offkai",
+  "fields": [
+    {
+      "key": "heading",
+      "label": "Heading",
+      "type": "text",
+      "default": "/r/LoveLive Offkai"
+    },
+    {
+      "key": "subtitle",
+      "label": "Event name",
+      "type": "text",
+      "default": "Boom Boom BEE r/ll Edition"
+    },
+    {
+      "key": "dateVenue",
+      "label": "Date and venue",
+      "type": "text",
+      "default": "2026年11月15日（日） 20:30 BeeRUSH Nishiki"
+    },
+    {
+      "key": "seat",
+      "label": "Seat",
+      "type": "text",
+      "default": "関係者席 ｱﾘｰﾅ 酒ﾌﾞﾛｯｸ 1列 1番",
+      "hint": "Half-width katakana and full-width ○ are kept exactly as typed."
+    },
+    {
+      "key": "serial",
+      "label": "Number",
+      "type": "text",
+      "default": "S114514"
+    },
+    {
+      "key": "notices",
+      "label": "Notices",
+      "type": "longtext",
+      "default": "※お気持ち禁止\n　上記の違反行為が発覚した場合、即時退場となります。\n※再入場はできません。\n※USA・アイマス最高など迷惑をかけるコール禁止\n※焼酎禁止"
+    }
+  ],
+  "doc": {
+    "version": 1,
+    "name": "Boom Boom BEE ticket",
+    "landscape": true,
+    "length": 1417,
+    "autoLength": true,
+    "endSpace": 96,
+    "elements": [
+      {
+        "kind": "image",
+        "x": 24,
+        "y": 12,
+        "w": 400,
+        "h": 360,
+        "rotation": 0,
+        "invert": false,
+        "src": "apps/lovelive-fest.jpg",
+        "fit": "contain",
+        "dither": "threshold",
+        "brightness": 0,
+        "contrast": 0,
+        "gamma": 1,
+        "threshold": 128,
+        "trim": true,
+        "autoTrim": true
+      },
+      {
+        "kind": "text",
+        "x": 455,
+        "y": 12,
+        "w": 866,
+        "h": 46,
+        "rotation": 0,
+        "invert": false,
+        "text": "{{heading}}",
+        "font": "MS Gothic",
+        "size": 46,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.0,
+        "letterSpacing": 0
+      },
+      {
+        "kind": "text",
+        "x": 455,
+        "y": 60,
+        "w": 866,
+        "h": 28,
+        "rotation": 0,
+        "invert": false,
+        "text": "{{subtitle}}",
+        "font": "MS Gothic",
+        "size": 28,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.0,
+        "letterSpacing": 0
+      },
+      {
+        "kind": "text",
+        "x": 455,
+        "y": 123,
+        "w": 880,
+        "h": 26,
+        "rotation": 0,
+        "invert": false,
+        "text": "{{dateVenue}}",
+        "font": "MS Gothic",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.0,
+        "letterSpacing": 0
+      },
+      {
+        "kind": "text",
+        "x": 455,
+        "y": 153,
+        "w": 880,
+        "h": 43,
+        "rotation": 0,
+        "invert": false,
+        "text": "{{seat}}",
+        "font": "MS Gothic",
+        "size": 43,
+        "weight": 700,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.0,
+        "letterSpacing": 0
+      },
+      {
+        "kind": "text",
+        "x": 455,
+        "y": 196,
+        "w": 880,
+        "h": 28,
+        "rotation": 0,
+        "invert": false,
+        "text": "{{serial}}",
+        "font": "MS Gothic",
+        "size": 28,
+        "weight": 700,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.0,
+        "letterSpacing": 0
+      },
+      {
+        "kind": "text",
+        "x": 455,
+        "y": 231,
+        "w": 880,
+        "h": 29,
+        "rotation": 0,
+        "invert": false,
+        "text": "{{notices}}",
+        "font": "MS Gothic",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.1,
+        "letterSpacing": 0
+      }
+    ],
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128,
+      "rotate": 90
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "blank",
+  "version": 1,
+  "name": "Blank roll",
+  "hint": "Start from empty paper",
+  "fields": [],
+  "doc": {
+    "version": 1,
+    "name": "Untitled",
+    "landscape": false,
+    "length": 600,
+    "autoLength": true,
+    "endSpace": 96,
+    "elements": [],
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128
+    }
+  }
+}

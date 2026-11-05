@@ -1,0 +1,224 @@
+{
+  "id": "grocery",
+  "version": 1,
+  "name": "Grocery list",
+  "hint": "Tick boxes as you shop",
+  "fields": [
+    {
+      "key": "store",
+      "label": "Store",
+      "type": "text",
+      "default": "MARKET RUN"
+    },
+    {
+      "key": "items",
+      "label": "Items",
+      "type": "list",
+      "default": [
+        {
+          "item": "Eggs",
+          "qty": "1 doz"
+        },
+        {
+          "item": "Milk",
+          "qty": "1 L"
+        },
+        {
+          "item": "Bread",
+          "qty": "1"
+        },
+        {
+          "item": "Bananas",
+          "qty": "6"
+        },
+        {
+          "item": "Rice",
+          "qty": "2 kg"
+        },
+        {
+          "item": "Spinach",
+          "qty": "1 bag"
+        },
+        {
+          "item": "Coffee beans",
+          "qty": "200 g"
+        },
+        {
+          "item": "Dish soap",
+          "qty": "1"
+        }
+      ],
+      "columns": [
+        {
+          "key": "item",
+          "label": "Item",
+          "type": "text"
+        },
+        {
+          "key": "qty",
+          "label": "Qty",
+          "type": "text"
+        }
+      ],
+      "format": "[ ] {item:<18} {qty:>6}",
+      "max": 20
+    },
+    {
+      "key": "budget",
+      "label": "Budget",
+      "type": "text",
+      "default": "¥3,000"
+    },
+    {
+      "key": "note",
+      "label": "Note",
+      "type": "longtext",
+      "default": "Bring the tote bags"
+    }
+  ],
+  "doc": {
+    "version": 1,
+    "name": "Grocery list",
+    "landscape": false,
+    "length": 600,
+    "autoLength": true,
+    "endSpace": 96,
+    "elements": [
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 43,
+        "rotation": 0,
+        "invert": false,
+        "font": "Archivo Black",
+        "size": 34,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 16,
+        "text": "{{store}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "VT323",
+        "size": 24,
+        "weight": 400,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 66,
+        "text": "LIST FOR {date}"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 8,
+        "rotation": 0,
+        "invert": false,
+        "shape": "dashes",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 108
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 271,
+        "rotation": 0,
+        "invert": false,
+        "font": "VT323",
+        "size": 26,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.3,
+        "letterSpacing": 0,
+        "y": 128,
+        "text": "{{items}}"
+      },
+      {
+        "kind": "shape",
+        "x": 0,
+        "w": 384,
+        "h": 8,
+        "rotation": 0,
+        "invert": false,
+        "shape": "dashes",
+        "fill": "solid",
+        "stroke": 3,
+        "radius": 0,
+        "y": 412
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "VT323",
+        "size": 24,
+        "weight": 400,
+        "italic": false,
+        "align": "left",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 432,
+        "text": "ITEMS {{count:items}}"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 30,
+        "rotation": 0,
+        "invert": false,
+        "font": "VT323",
+        "size": 24,
+        "weight": 400,
+        "italic": false,
+        "align": "right",
+        "lineHeight": 1.25,
+        "letterSpacing": 0,
+        "y": 432,
+        "text": "BUDGET {{budget}}",
+        "when": "budget"
+      },
+      {
+        "kind": "text",
+        "x": 0,
+        "w": 384,
+        "h": 34,
+        "rotation": 0,
+        "invert": false,
+        "font": "Caveat",
+        "size": 28,
+        "weight": 700,
+        "italic": false,
+        "align": "center",
+        "lineHeight": 1.2,
+        "letterSpacing": 0,
+        "y": 476,
+        "text": "{{note}}",
+        "when": "note"
+      }
+    ],
+    "print": {
+      "heat": 0,
+      "copies": 1,
+      "darkness": 128
+    }
+  }
+}
